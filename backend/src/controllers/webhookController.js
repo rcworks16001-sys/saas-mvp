@@ -2,7 +2,7 @@ const pool = require('../db/index');
 const axios = require('axios');
 require('dotenv').config();
 
-// ── Verify webhook (Meta calls this once to confirm your endpoint) ──
+// ── Verify webhook ──
 const verify = (req, res) => {
     const mode = req.query['hub.mode'];
     const token = req.query['hub.verify_token'];
@@ -40,9 +40,8 @@ const sendWhatsAppMessage = async (to, message) => {
     }
 };
 
-// ── Get or create a lead from a WhatsApp number ──
+// ── Get or create lead ──
 const getOrCreateLead = async (organizationId, phone, name) => {
-    // Check if lead already exists
     const existing = await pool.query(
         'SELECT * FROM leads WHERE organization_id = $1 AND phone = $2',
         [organizationId, phone]
@@ -52,7 +51,6 @@ const getOrCreateLead = async (organizationId, phone, name) => {
         return { lead: existing.rows[0], isNew: false };
     }
 
-    // Create new lead
     const result = await pool.query(
         `INSERT INTO leads (organization_id, name, phone, whatsapp_number, status, source)
      VALUES ($1, $2, $3, $3, 'new', 'whatsapp')
@@ -63,7 +61,7 @@ const getOrCreateLead = async (organizationId, phone, name) => {
     return { lead: result.rows[0], isNew: true };
 };
 
-// ── Save conversation message ──
+// ── Save message ──
 const saveMessage = async (organizationId, leadId, message, sender) => {
     await pool.query(
         `INSERT INTO conversations (organization_id, lead_id, message, sender)
@@ -72,7 +70,7 @@ const saveMessage = async (organizationId, leadId, message, sender) => {
     );
 };
 
-// ── Get chatbot config for organization ──
+// ── Get chatbot config ──
 const getChatbotConfig = async (organizationId) => {
     const result = await pool.query(
         'SELECT * FROM chatbot_configs WHERE organization_id = $1',
@@ -81,28 +79,23 @@ const getChatbotConfig = async (organizationId) => {
     return result.rows[0];
 };
 
-// ── AI response using OpenAI ──
+// ── AI response logic ──
 const getAIResponse = async (userMessage, lead, config) => {
     try {
         const questions = config?.questions || [];
         const requirements = lead.requirements || {};
-
-        // Figure out which question to ask next
         const answeredKeys = Object.keys(requirements);
         const nextQuestion = questions.find(q => !answeredKeys.includes(q.key));
 
-        // If all questions answered, give closing message
         if (!nextQuestion) {
             return `Thank you! I have captured all your details. Our team will contact you shortly at ${lead.phone}. Have a great day!`;
         }
 
-        // If this is the first message, greet and ask first question
         if (answeredKeys.length === 0) {
             const greeting = config?.greeting_message || 'Hello! How can I help you today?';
             return `${greeting}\n\n${nextQuestion.question}`;
         }
 
-        // Save the answer to the previous question
         const lastAskedKey = questions[answeredKeys.length - 1]?.key;
         if (lastAskedKey) {
             const updatedRequirements = { ...requirements, [lastAskedKey]: userMessage };
@@ -125,7 +118,6 @@ const handleMessage = async (req, res) => {
     try {
         const body = req.body;
 
-        // Confirm it's a WhatsApp message
         if (body.object !== 'whatsapp_business_account') {
             return res.sendStatus(404);
         }
@@ -135,22 +127,20 @@ const handleMessage = async (req, res) => {
         const value = changes?.value;
         const messages = value?.messages;
 
-        // Only process if there are messages
         if (!messages || messages.length === 0) {
             return res.sendStatus(200);
         }
 
         const message = messages[0];
-        const from = message.from; // Customer's WhatsApp number
+        const from = message.from;
         const messageText = message.text?.body;
         const contactName = value?.contacts?.[0]?.profile?.name || 'WhatsApp Lead';
 
         console.log(`Message from ${from}: ${messageText}`);
 
-        // Find which organization this WhatsApp number belongs to
-        // For MVP: use the first organization (later: map by phone number)
+        // Get organization and owner phone
         const orgResult = await pool.query(
-            'SELECT id FROM organizations LIMIT 1'
+            'SELECT id, phone FROM organizations LIMIT 1'
         );
 
         if (orgResult.rows.length === 0) {
@@ -158,6 +148,7 @@ const handleMessage = async (req, res) => {
         }
 
         const organizationId = orgResult.rows[0].id;
+        const ownerPhone = orgResult.rows[0].phone;
 
         // Get or create lead
         const { lead, isNew } = await getOrCreateLead(organizationId, from, contactName);
@@ -165,20 +156,26 @@ const handleMessage = async (req, res) => {
         // Save incoming message
         await saveMessage(organizationId, lead.id, messageText, 'customer');
 
-        // Get chatbot config
+        // Generate and send bot response
         const config = await getChatbotConfig(organizationId);
-
-        // Generate response
         const response = await getAIResponse(messageText, lead, config);
-
-        // Save bot response
         await saveMessage(organizationId, lead.id, response, 'bot');
-
-        // Send response back to customer
         await sendWhatsAppMessage(from, response);
 
-        console.log(`Response sent to ${from}: ${response}`);
+        // Send notification to owner for NEW leads only
+        if (isNew && ownerPhone) {
+            const notificationMessage =
+                `🔔 New Lead Captured!\n\n` +
+                `👤 Name: ${contactName}\n` +
+                `📱 Phone: +${from}\n` +
+                `💬 Message: "${messageText}"\n\n` +
+                `View dashboard: https://saas-mvp-one.vercel.app/dashboard`;
 
+            await sendWhatsAppMessage(ownerPhone, notificationMessage);
+            console.log(`Owner notification sent to ${ownerPhone}`);
+        }
+
+        console.log(`Response sent to ${from}: ${response}`);
         res.sendStatus(200);
 
     } catch (error) {
