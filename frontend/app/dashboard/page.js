@@ -33,12 +33,14 @@ export default function DashboardPage() {
     const [filter, setFilter] = useState('all');
     const [search, setSearch] = useState('');
     const [userName, setUserName] = useState('');
+    const [billingStatus, setBillingStatus] = useState(null);
 
     useEffect(() => {
         const token = Cookies.get('token');
         if (!token) { router.push('/login'); return; }
         setUserName(Cookies.get('userName') || 'there');
         fetchLeads();
+        fetchBillingStatus();
     }, []);
 
     const fetchLeads = async () => {
@@ -50,6 +52,15 @@ export default function DashboardPage() {
             if (error.response?.status === 401) router.push('/login');
         } finally {
             setLoading(false);
+        }
+    };
+
+    const fetchBillingStatus = async () => {
+        try {
+            const response = await api.get('/billing/status');
+            setBillingStatus(response.data);
+        } catch (error) {
+            // Silently fail — billing banner is non-critical
         }
     };
 
@@ -93,6 +104,11 @@ export default function DashboardPage() {
         if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
         return `${Math.floor(seconds / 86400)}d ago`;
     };
+
+    const trialDaysLeft = billingStatus?.trialDaysRemaining;
+    const isActive = billingStatus?.status === 'active';
+    const showTrialBanner = billingStatus?.isTrialActive && trialDaysLeft <= 7;
+    const showExpiredBanner = !billingStatus?.isTrialActive && !isActive && billingStatus !== null;
 
     return (
         <div style={{
@@ -155,6 +171,22 @@ export default function DashboardPage() {
                         </span>
                     </div>
 
+                    <a href="/billing" style={{
+                        padding: '6px 14px',
+                        background: isActive ? 'rgba(52,211,153,0.08)' : 'rgba(79,140,255,0.08)',
+                        border: `1px solid ${isActive ? 'rgba(52,211,153,0.25)' : 'rgba(79,140,255,0.25)'}`,
+                        borderRadius: '8px',
+                        color: isActive ? '#34d399' : S.accent,
+                        fontSize: '12px', fontWeight: 600,
+                        textDecoration: 'none',
+                        transition: 'all 180ms ease'
+                    }}
+                        onMouseEnter={e => e.currentTarget.style.opacity = '0.8'}
+                        onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+                    >
+                        {isActive ? '✓ Pro' : '💳 Billing'}
+                    </a>
+
                     <a href="/dashboard/settings" style={{
                         padding: '6px 14px',
                         background: 'transparent',
@@ -204,6 +236,54 @@ export default function DashboardPage() {
                     </button>
                 </div>
             </nav>
+
+            {/* Trial warning banner */}
+            {showTrialBanner && (
+                <div style={{
+                    background: 'rgba(245,158,11,0.08)',
+                    borderBottom: '1px solid rgba(245,158,11,0.2)',
+                    padding: '10px 32px',
+                    display: 'flex', alignItems: 'center',
+                    justifyContent: 'space-between'
+                }}>
+                    <span style={{ fontSize: '13px', color: '#f59e0b' }}>
+                        ⏳ Your free trial ends in <strong>{trialDaysLeft} days</strong>. Subscribe to keep access.
+                    </span>
+                    <a href="/billing" style={{
+                        fontSize: '12px', fontWeight: 600,
+                        color: '#f59e0b', textDecoration: 'none',
+                        padding: '4px 12px',
+                        border: '1px solid rgba(245,158,11,0.4)',
+                        borderRadius: '6px'
+                    }}>
+                        Subscribe Now →
+                    </a>
+                </div>
+            )}
+
+            {/* Trial expired banner */}
+            {showExpiredBanner && (
+                <div style={{
+                    background: 'rgba(248,113,113,0.08)',
+                    borderBottom: '1px solid rgba(248,113,113,0.2)',
+                    padding: '10px 32px',
+                    display: 'flex', alignItems: 'center',
+                    justifyContent: 'space-between'
+                }}>
+                    <span style={{ fontSize: '13px', color: '#f87171' }}>
+                        ⚠️ Your trial has expired. Subscribe to restore full access.
+                    </span>
+                    <a href="/billing" style={{
+                        fontSize: '12px', fontWeight: 600,
+                        color: '#f87171', textDecoration: 'none',
+                        padding: '4px 12px',
+                        border: '1px solid rgba(248,113,113,0.4)',
+                        borderRadius: '6px'
+                    }}>
+                        Subscribe Now →
+                    </a>
+                </div>
+            )}
 
             {/* Page content */}
             <div style={{ padding: '28px 32px', maxWidth: '1240px', margin: '0 auto' }}>
@@ -277,7 +357,6 @@ export default function DashboardPage() {
                     justifyContent: 'space-between',
                     marginBottom: '14px', gap: '12px', flexWrap: 'wrap'
                 }}>
-                    {/* Filter pills */}
                     <div style={{
                         display: 'flex', gap: '4px',
                         background: S.surface,
@@ -300,7 +379,6 @@ export default function DashboardPage() {
                         ))}
                     </div>
 
-                    {/* Search */}
                     <input
                         type="text"
                         placeholder="Search by name, phone..."
@@ -332,7 +410,6 @@ export default function DashboardPage() {
                     border: `1px solid ${S.border}`,
                     borderRadius: '14px', overflow: 'hidden'
                 }}>
-                    {/* Header */}
                     <div style={{
                         display: 'grid',
                         gridTemplateColumns: '2fr 1.4fr 2fr 1.2fr 0.9fr 1.4fr',
@@ -349,7 +426,6 @@ export default function DashboardPage() {
                         ))}
                     </div>
 
-                    {/* Loading */}
                     {loading && (
                         <div style={{ padding: '56px 20px', textAlign: 'center' }}>
                             <div style={{
@@ -364,7 +440,6 @@ export default function DashboardPage() {
                         </div>
                     )}
 
-                    {/* Empty */}
                     {!loading && filteredLeads.length === 0 && (
                         <div style={{ padding: '56px 20px', textAlign: 'center' }}>
                             <div style={{ fontSize: '32px', marginBottom: '12px' }}>📭</div>
@@ -377,7 +452,6 @@ export default function DashboardPage() {
                         </div>
                     )}
 
-                    {/* Rows */}
                     {!loading && filteredLeads.map((lead, i) => (
                         <div key={lead.id} style={{
                             display: 'grid',
@@ -391,7 +465,6 @@ export default function DashboardPage() {
                             onMouseEnter={e => e.currentTarget.style.background = S.surface2}
                             onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                         >
-                            {/* Name */}
                             <div
                                 onClick={() => router.push(`/dashboard/leads/${lead.id}`)}
                                 style={{
@@ -405,7 +478,6 @@ export default function DashboardPage() {
                                 {lead.name || 'Unknown'}
                             </div>
 
-                            {/* Phone */}
                             <div style={{
                                 fontSize: '12px', color: S.textSecondary,
                                 fontFamily: 'monospace', letterSpacing: '0.02em'
@@ -413,7 +485,6 @@ export default function DashboardPage() {
                                 {lead.phone}
                             </div>
 
-                            {/* Message */}
                             <div style={{
                                 fontSize: '12px', color: S.textMuted,
                                 overflow: 'hidden', textOverflow: 'ellipsis',
@@ -422,7 +493,6 @@ export default function DashboardPage() {
                                 {lead.message || '—'}
                             </div>
 
-                            {/* Status */}
                             <div>
                                 <span style={{
                                     display: 'inline-flex', alignItems: 'center',
@@ -436,12 +506,10 @@ export default function DashboardPage() {
                                 </span>
                             </div>
 
-                            {/* Time */}
                             <div style={{ fontSize: '11px', color: S.textMuted }}>
                                 {timeAgo(lead.created_at)}
                             </div>
 
-                            {/* Dropdown */}
                             <select
                                 value={lead.status}
                                 onChange={e => updateStatus(lead.id, e.target.value)}
@@ -470,7 +538,6 @@ export default function DashboardPage() {
                     ))}
                 </div>
 
-                {/* Count */}
                 {!loading && (
                     <div style={{
                         marginTop: '12px', fontSize: '12px',

@@ -7,6 +7,7 @@ const db = require('./src/db/index');
 const authRoutes = require('./src/routes/auth');
 const leadsRoutes = require('./src/routes/leads');
 const webhookRoutes = require('./src/routes/webhook');
+const billingRoutes = require('./src/routes/billing');
 
 const app = express();
 
@@ -18,6 +19,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/leads', leadsRoutes);
 app.use('/webhook', webhookRoutes);
 app.use('/api/settings', settingsRoutes);
+app.use('/api/billing', billingRoutes);
 
 // Test route
 app.get('/', (req, res) => {
