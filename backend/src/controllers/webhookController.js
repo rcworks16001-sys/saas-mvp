@@ -1,6 +1,9 @@
 const pool = require('../db/index');
 const axios = require('axios');
+const { Resend } = require('resend');
 require('dotenv').config();
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 // ── Verify webhook ──
 const verify = (req, res) => {
@@ -37,6 +40,53 @@ const sendWhatsAppMessage = async (to, message) => {
         );
     } catch (error) {
         console.error('Error sending WhatsApp message:', error.response?.data);
+    }
+};
+
+// ── Send email notification ──
+const sendEmailNotification = async (toEmail, orgName, contactName, phone, messageText) => {
+    try {
+        await resend.emails.send({
+            from: 'WhatsApp CRM <onboarding@resend.dev>',
+            to: toEmail,
+            subject: `🔔 New Lead: ${contactName}`,
+            html: `
+                <div style="font-family: Arial, sans-serif; max-width: 520px; margin: 0 auto; background: #0F1115; color: #F5F7FA; padding: 32px; border-radius: 12px;">
+                    <div style="background: #4F8CFF; width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-bottom: 24px;">
+                        <span style="color: white; font-weight: 700; font-size: 16px;">W</span>
+                    </div>
+                    <h2 style="color: #F5F7FA; margin: 0 0 8px 0; font-size: 20px;">New Lead Captured</h2>
+                    <p style="color: #9AA4B2; margin: 0 0 24px 0; font-size: 14px;">A new lead just came in via WhatsApp for ${orgName}.</p>
+                    
+                    <div style="background: #161A22; border: 1px solid #2A3142; border-radius: 10px; padding: 20px; margin-bottom: 24px;">
+                        <div style="margin-bottom: 12px;">
+                            <span style="color: #5C6A7E; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em;">Name</span>
+                            <div style="color: #F5F7FA; font-size: 15px; font-weight: 600; margin-top: 4px;">${contactName}</div>
+                        </div>
+                        <div style="margin-bottom: 12px;">
+                            <span style="color: #5C6A7E; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em;">Phone</span>
+                            <div style="color: #F5F7FA; font-size: 15px; font-weight: 600; margin-top: 4px;">+${phone}</div>
+                        </div>
+                        <div>
+                            <span style="color: #5C6A7E; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em;">First Message</span>
+                            <div style="color: #9AA4B2; font-size: 14px; margin-top: 4px; font-style: italic;">"${messageText}"</div>
+                        </div>
+                    </div>
+
+                    <a href="https://saas-mvp-one.vercel.app/dashboard" 
+                       style="display: block; background: #4F8CFF; color: white; text-align: center; padding: 12px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px;">
+                        View Lead in Dashboard →
+                    </a>
+
+                    <p style="color: #5C6A7E; font-size: 11px; text-align: center; margin-top: 24px;">
+                        WhatsApp CRM · You are receiving this because you have notifications enabled.
+                    </p>
+                </div>
+            `
+        });
+        console.log(`Email notification sent to ${toEmail}`);
+    } catch (error) {
+        console.error('Email notification error:', error);
     }
 };
 
@@ -146,11 +196,11 @@ const handleMessage = async (req, res) => {
 
         if (incomingPhoneNumberId && incomingPhoneNumberId === process.env.WHATSAPP_PHONE_NUMBER_ID) {
             orgResult = await pool.query(
-                'SELECT id, phone FROM organizations ORDER BY created_at ASC LIMIT 1'
+                'SELECT id, phone, email, name FROM organizations ORDER BY created_at ASC LIMIT 1'
             );
         } else {
             orgResult = await pool.query(
-                'SELECT id, phone FROM organizations ORDER BY created_at ASC LIMIT 1'
+                'SELECT id, phone, email, name FROM organizations ORDER BY created_at ASC LIMIT 1'
             );
         }
 
@@ -162,6 +212,8 @@ const handleMessage = async (req, res) => {
 
         const organizationId = orgResult.rows[0].id;
         const ownerPhone = orgResult.rows[0].phone;
+        const ownerEmail = orgResult.rows[0].email;
+        const orgName = orgResult.rows[0].name;
 
         // Get or create lead
         const { lead, isNew } = await getOrCreateLead(organizationId, from, contactName);
@@ -175,8 +227,8 @@ const handleMessage = async (req, res) => {
         await saveMessage(organizationId, lead.id, response, 'bot');
         await sendWhatsAppMessage(from, response);
 
-        // Send notification to owner for NEW leads only
-        if (isNew && ownerPhone) {
+        // Send notifications for NEW leads only
+        if (isNew) {
             const notificationMessage =
                 `🔔 New Lead Captured!\n\n` +
                 `👤 Name: ${contactName}\n` +
@@ -184,8 +236,16 @@ const handleMessage = async (req, res) => {
                 `💬 Message: "${messageText}"\n\n` +
                 `View dashboard: https://saas-mvp-one.vercel.app/dashboard`;
 
-            await sendWhatsAppMessage(ownerPhone, notificationMessage);
-            console.log(`Owner notification sent to ${ownerPhone}`);
+            // WhatsApp notification
+            if (ownerPhone) {
+                await sendWhatsAppMessage(ownerPhone, notificationMessage);
+                console.log(`WhatsApp notification sent to ${ownerPhone}`);
+            }
+
+            // Email notification
+            if (ownerEmail) {
+                await sendEmailNotification(ownerEmail, orgName, contactName, from, messageText);
+            }
         }
 
         console.log(`Response sent to ${from}: ${response}`);
