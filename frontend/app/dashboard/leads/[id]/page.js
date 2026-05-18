@@ -29,6 +29,8 @@ export default function LeadDetailPage() {
     const [conversations, setConversations] = useState([]);
     const [loading, setLoading] = useState(true);
     const [updating, setUpdating] = useState(false);
+    const [deleting, setDeleting] = useState(false);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
     useEffect(() => {
         const token = Cookies.get('token');
@@ -60,6 +62,19 @@ export default function LeadDetailPage() {
             toast.error('Failed to update status');
         } finally {
             setUpdating(false);
+        }
+    };
+
+    const deleteLead = async () => {
+        setDeleting(true);
+        try {
+            await api.delete(`/leads/${params.id}`);
+            toast.success('Lead deleted');
+            router.push('/dashboard');
+        } catch (error) {
+            toast.error('Failed to delete lead');
+            setDeleting(false);
+            setShowDeleteConfirm(false);
         }
     };
 
@@ -97,6 +112,73 @@ export default function LeadDetailPage() {
             minHeight: '100vh', background: S.bg,
             fontFamily: 'var(--font-family)', color: S.textPrimary
         }}>
+
+            {/* Delete Confirmation Modal */}
+            {showDeleteConfirm && (
+                <div style={{
+                    position: 'fixed', inset: 0, zIndex: 1000,
+                    background: 'rgba(0,0,0,0.6)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center'
+                }}>
+                    <div style={{
+                        background: S.surface,
+                        border: `1px solid ${S.border}`,
+                        borderRadius: '16px',
+                        padding: '28px',
+                        maxWidth: '380px', width: '90%',
+                        textAlign: 'center'
+                    }}>
+                        <div style={{ fontSize: '32px', marginBottom: '12px' }}>🗑️</div>
+                        <h3 style={{
+                            fontSize: '16px', fontWeight: 700,
+                            color: S.textPrimary, marginBottom: '8px'
+                        }}>
+                            Delete this lead?
+                        </h3>
+                        <p style={{
+                            fontSize: '13px', color: S.textSecondary,
+                            lineHeight: 1.6, marginBottom: '24px'
+                        }}>
+                            This will permanently delete <strong style={{ color: S.textPrimary }}>{lead.name}</strong> and all their conversation history. This cannot be undone.
+                        </p>
+                        <div style={{ display: 'flex', gap: '10px' }}>
+                            <button
+                                onClick={() => setShowDeleteConfirm(false)}
+                                disabled={deleting}
+                                style={{
+                                    flex: 1, padding: '10px',
+                                    borderRadius: '8px',
+                                    border: `1px solid ${S.border}`,
+                                    background: 'transparent',
+                                    color: S.textSecondary,
+                                    fontSize: '13px', fontWeight: 600,
+                                    cursor: 'pointer',
+                                    fontFamily: 'var(--font-family)'
+                                }}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={deleteLead}
+                                disabled={deleting}
+                                style={{
+                                    flex: 1, padding: '10px',
+                                    borderRadius: '8px',
+                                    border: 'none',
+                                    background: '#ef4444',
+                                    color: 'white',
+                                    fontSize: '13px', fontWeight: 600,
+                                    cursor: deleting ? 'not-allowed' : 'pointer',
+                                    fontFamily: 'var(--font-family)',
+                                    opacity: deleting ? 0.6 : 1
+                                }}
+                            >
+                                {deleting ? 'Deleting...' : 'Yes, Delete'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Navbar */}
             <nav style={{
@@ -175,8 +257,8 @@ export default function LeadDetailPage() {
                         </p>
                     </div>
 
-                    {/* Status updater */}
-                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    {/* Status buttons + Delete */}
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
                         {Object.entries(STATUS_CONFIG).map(([value, config]) => (
                             <button
                                 key={value}
@@ -212,6 +294,32 @@ export default function LeadDetailPage() {
                                 {config.label}
                             </button>
                         ))}
+
+                        {/* Delete button */}
+                        <button
+                            onClick={() => setShowDeleteConfirm(true)}
+                            style={{
+                                padding: '6px 14px',
+                                borderRadius: '8px',
+                                border: '1px solid rgba(239,68,68,0.4)',
+                                background: 'rgba(239,68,68,0.08)',
+                                color: '#f87171',
+                                fontSize: '12px', fontWeight: 600,
+                                cursor: 'pointer',
+                                fontFamily: 'var(--font-family)',
+                                transition: 'all 180ms ease'
+                            }}
+                            onMouseEnter={e => {
+                                e.currentTarget.style.borderColor = '#ef4444';
+                                e.currentTarget.style.background = 'rgba(239,68,68,0.15)';
+                            }}
+                            onMouseLeave={e => {
+                                e.currentTarget.style.borderColor = 'rgba(239,68,68,0.4)';
+                                e.currentTarget.style.background = 'rgba(239,68,68,0.08)';
+                            }}
+                        >
+                            🗑️ Delete
+                        </button>
                     </div>
                 </div>
 
