@@ -140,7 +140,7 @@ const handleMessage = async (req, res) => {
 
         // Get organization and owner phone
         const orgResult = await pool.query(
-            'SELECT id, phone FROM organizations LIMIT 1'
+            'SELECT id, phone FROM organizations ORDER BY created_at ASC LIMIT 1'
         );
 
         if (orgResult.rows.length === 0) {
