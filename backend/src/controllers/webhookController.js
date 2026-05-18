@@ -138,10 +138,22 @@ const handleMessage = async (req, res) => {
 
         console.log(`Message from ${from}: ${messageText}`);
 
-        // Get organization and owner phone
-        const orgResult = await pool.query(
-            'SELECT id, phone FROM organizations ORDER BY created_at ASC LIMIT 1'
+        // Match org by the WhatsApp number the message was sent TO
+        const wabaPhoneNumber = value?.metadata?.display_phone_number;
+        console.log(`Incoming message to WhatsApp number: ${wabaPhoneNumber}`);
+
+        let orgResult = await pool.query(
+            'SELECT id, phone FROM organizations WHERE phone = $1 LIMIT 1',
+            [wabaPhoneNumber]
         );
+
+        // Fallback to oldest org if no match found
+        if (orgResult.rows.length === 0) {
+            console.log(`No org matched for ${wabaPhoneNumber}, falling back to oldest org`);
+            orgResult = await pool.query(
+                'SELECT id, phone FROM organizations ORDER BY created_at ASC LIMIT 1'
+            );
+        }
 
         if (orgResult.rows.length === 0) {
             return res.sendStatus(200);
