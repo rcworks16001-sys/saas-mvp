@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const settingsRoutes = require('./src/routes/settings');
 require('dotenv').config();
 
 const db = require('./src/db/index');
@@ -16,6 +17,7 @@ app.use(express.json());
 app.use('/api/auth', authRoutes);
 app.use('/api/leads', leadsRoutes);
 app.use('/webhook', webhookRoutes);
+app.use('/api/settings', settingsRoutes);
 
 // Test route
 app.get('/', (req, res) => {
