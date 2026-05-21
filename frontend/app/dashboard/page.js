@@ -17,6 +17,12 @@ const S = {
     textMuted: '#5C6A7E',
 };
 
+const SCORE_CONFIG = {
+    hot: { label: '🔥 Hot', color: '#f97316', bg: 'rgba(249,115,22,0.12)' },
+    warm: { label: '⚡ Warm', color: '#f59e0b', bg: 'rgba(245,158,11,0.12)' },
+    cold: { label: '❄️ Cold', color: '#9AA4B2', bg: 'rgba(154,164,178,0.12)' },
+};
+
 const STATUS_CONFIG = {
     new: { label: 'New', color: '#4F8CFF', bg: 'rgba(79,140,255,0.12)' },
     contacted: { label: 'Contacted', color: '#f59e0b', bg: 'rgba(245,158,11,0.12)' },
@@ -518,7 +524,8 @@ export default function DashboardPage() {
                                 {lead.message || '—'}
                             </div>
 
-                            <div>
+                            {/* Status + Score */}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                 <span style={{
                                     display: 'inline-flex', alignItems: 'center',
                                     padding: '3px 9px', borderRadius: '999px',
@@ -529,6 +536,17 @@ export default function DashboardPage() {
                                 }}>
                                     {STATUS_CONFIG[lead.status]?.label || lead.status}
                                 </span>
+                                {lead.score > 0 && (
+                                    <span style={{
+                                        display: 'inline-flex', alignItems: 'center',
+                                        padding: '2px 8px', borderRadius: '999px',
+                                        fontSize: '10px', fontWeight: 700,
+                                        color: SCORE_CONFIG[lead.score_label]?.color || S.textMuted,
+                                        background: SCORE_CONFIG[lead.score_label]?.bg || 'rgba(148,163,184,0.1)',
+                                    }}>
+                                        {SCORE_CONFIG[lead.score_label]?.label} · {lead.score}
+                                    </span>
+                                )}
                             </div>
 
                             <div style={{ fontSize: '11px', color: S.textMuted }}>

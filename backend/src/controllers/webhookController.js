@@ -1,4 +1,5 @@
 const pool = require('../db/index');
+const { updateLeadScore } = require('./leadsController');
 const axios = require('axios');
 const { Resend } = require('resend');
 require('dotenv').config();
@@ -153,6 +154,7 @@ const getAIResponse = async (userMessage, lead, config) => {
                 'UPDATE leads SET requirements = $1, updated_at = NOW() WHERE id = $2',
                 [JSON.stringify(updatedRequirements), lead.id]
             );
+            await updateLeadScore(lead.id);
         }
 
         return nextQuestion.question;

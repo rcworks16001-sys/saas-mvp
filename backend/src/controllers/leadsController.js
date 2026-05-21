@@ -1,22 +1,61 @@
 const pool = require('../db/index');
 
+// ── Calculate lead score ──
+const calculateScore = (lead) => {
+    const requirements = lead.requirements || {};
+    let score = 0;
+
+    if (requirements.budget) score += 20;
+    if (requirements.area) score += 15;
+    if (requirements.bhk) score += 10;
+    if (requirements.timeline) score += 15;
+    if (requirements.site_visit_interest) score += 25;
+    if (requirements.loan_required) score += 10;
+    if (requirements.purpose) score += 5;
+
+    // Response speed bonus — replied within 1 hour of lead creation
+    if (lead.updated_at && lead.created_at) {
+        const diff = new Date(lead.updated_at) - new Date(lead.created_at);
+        if (diff <= 60 * 60 * 1000) score += 5;
+    }
+
+    score = Math.min(score, 100);
+
+    let label;
+    if (score >= 70) label = 'hot';
+    else if (score >= 40) label = 'warm';
+    else label = 'cold';
+
+    return { score, label };
+};
+
+// ── Update score in DB ──
+const updateLeadScore = async (leadId) => {
+    try {
+        const result = await pool.query('SELECT * FROM leads WHERE id = $1', [leadId]);
+        if (result.rows.length === 0) return;
+        const lead = result.rows[0];
+        const { score, label } = calculateScore(lead);
+        await pool.query(
+            'UPDATE leads SET score = $1, score_label = $2 WHERE id = $3',
+            [score, label, leadId]
+        );
+    } catch (error) {
+        console.error('Score update error:', error);
+    }
+};
+
 // Get all leads for an organization
 const getLeads = async (req, res) => {
     const { organizationId } = req.user;
-
     try {
         const result = await pool.query(
             `SELECT * FROM leads 
-       WHERE organization_id = $1 
-       ORDER BY created_at DESC`,
+             WHERE organization_id = $1 
+             ORDER BY score DESC, created_at DESC`,
             [organizationId]
         );
-
-        res.json({
-            leads: result.rows,
-            total: result.rows.length
-        });
-
+        res.json({ leads: result.rows, total: result.rows.length });
     } catch (error) {
         console.error('Get leads error:', error);
         res.status(500).json({ error: 'Failed to fetch leads' });
@@ -27,30 +66,18 @@ const getLeads = async (req, res) => {
 const getLeadById = async (req, res) => {
     const { organizationId } = req.user;
     const { id } = req.params;
-
     try {
         const lead = await pool.query(
-            `SELECT * FROM leads 
-       WHERE id = $1 AND organization_id = $2`,
+            `SELECT * FROM leads WHERE id = $1 AND organization_id = $2`,
             [id, organizationId]
         );
-
-        if (lead.rows.length === 0) {
-            return res.status(404).json({ error: 'Lead not found' });
-        }
+        if (lead.rows.length === 0) return res.status(404).json({ error: 'Lead not found' });
 
         const conversations = await pool.query(
-            `SELECT * FROM conversations 
-       WHERE lead_id = $1 
-       ORDER BY created_at ASC`,
+            `SELECT * FROM conversations WHERE lead_id = $1 ORDER BY created_at ASC`,
             [id]
         );
-
-        res.json({
-            lead: lead.rows[0],
-            conversations: conversations.rows
-        });
-
+        res.json({ lead: lead.rows[0], conversations: conversations.rows });
     } catch (error) {
         console.error('Get lead error:', error);
         res.status(500).json({ error: 'Failed to fetch lead' });
@@ -61,28 +88,17 @@ const getLeadById = async (req, res) => {
 const createLead = async (req, res) => {
     const { organizationId } = req.user;
     const { name, phone, message, requirements, source } = req.body;
-
     try {
         const result = await pool.query(
             `INSERT INTO leads 
-       (organization_id, name, phone, whatsapp_number, message, requirements, source)
-       VALUES ($1, $2, $3, $3, $4, $5, $6)
-       RETURNING *`,
-            [
-                organizationId,
-                name,
-                phone,
-                message,
-                JSON.stringify(requirements || {}),
-                source || 'manual'
-            ]
+             (organization_id, name, phone, whatsapp_number, message, requirements, source)
+             VALUES ($1, $2, $3, $3, $4, $5, $6)
+             RETURNING *`,
+            [organizationId, name, phone, message, JSON.stringify(requirements || {}), source || 'manual']
         );
-
-        res.status(201).json({
-            message: 'Lead created successfully',
-            lead: result.rows[0]
-        });
-
+        const lead = result.rows[0];
+        await updateLeadScore(lead.id);
+        res.status(201).json({ message: 'Lead created successfully', lead });
     } catch (error) {
         console.error('Create lead error:', error);
         res.status(500).json({ error: 'Failed to create lead' });
@@ -96,31 +112,19 @@ const updateLeadStatus = async (req, res) => {
     const { status } = req.body;
 
     const validStatuses = ['new', 'contacted', 'qualified', 'site_visit', 'converted', 'lost'];
-
     if (!validStatuses.includes(status)) {
-        return res.status(400).json({
-            error: `Invalid status. Must be one of: ${validStatuses.join(', ')}`
-        });
+        return res.status(400).json({ error: `Invalid status. Must be one of: ${validStatuses.join(', ')}` });
     }
 
     try {
         const result = await pool.query(
-            `UPDATE leads 
-       SET status = $1, updated_at = NOW()
-       WHERE id = $2 AND organization_id = $3
-       RETURNING *`,
+            `UPDATE leads SET status = $1, updated_at = NOW()
+             WHERE id = $2 AND organization_id = $3 RETURNING *`,
             [status, id, organizationId]
         );
-
-        if (result.rows.length === 0) {
-            return res.status(404).json({ error: 'Lead not found' });
-        }
-
-        res.json({
-            message: 'Lead status updated',
-            lead: result.rows[0]
-        });
-
+        if (result.rows.length === 0) return res.status(404).json({ error: 'Lead not found' });
+        await updateLeadScore(id);
+        res.json({ message: 'Lead status updated', lead: result.rows[0] });
     } catch (error) {
         console.error('Update lead error:', error);
         res.status(500).json({ error: 'Failed to update lead' });
@@ -131,31 +135,17 @@ const updateLeadStatus = async (req, res) => {
 const deleteLead = async (req, res) => {
     const { organizationId } = req.user;
     const { id } = req.params;
-
     try {
         const result = await pool.query(
-            `DELETE FROM leads 
-       WHERE id = $1 AND organization_id = $2
-       RETURNING id`,
+            `DELETE FROM leads WHERE id = $1 AND organization_id = $2 RETURNING id`,
             [id, organizationId]
         );
-
-        if (result.rows.length === 0) {
-            return res.status(404).json({ error: 'Lead not found' });
-        }
-
+        if (result.rows.length === 0) return res.status(404).json({ error: 'Lead not found' });
         res.json({ message: 'Lead deleted successfully' });
-
     } catch (error) {
         console.error('Delete lead error:', error);
         res.status(500).json({ error: 'Failed to delete lead' });
     }
 };
 
-module.exports = {
-    getLeads,
-    getLeadById,
-    createLead,
-    updateLeadStatus,
-    deleteLead
-};
+module.exports = { getLeads, getLeadById, createLead, updateLeadStatus, deleteLead, calculateScore, updateLeadScore };
