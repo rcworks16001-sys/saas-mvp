@@ -11,7 +11,7 @@ const getConfig = async (req, res) => {
         );
 
         const org = await pool.query(
-            'SELECT name, phone, industry FROM organizations WHERE id = $1',
+            'SELECT name, email, phone, industry, description, working_hours, service_locations, website, email_notifications FROM organizations WHERE id = $1',
             [organizationId]
         );
 
@@ -29,24 +29,29 @@ const getConfig = async (req, res) => {
 // Update chatbot config
 const updateConfig = async (req, res) => {
     const { organizationId } = req.user;
-    const { greetingMessage, questions, whatsappPhone } = req.body;
+    const {
+        greetingMessage, questions, whatsappPhone,
+        description, workingHours, serviceLocations,
+        website, emailNotifications, aiRules, tone
+    } = req.body;
 
     try {
         // Update chatbot config
         await pool.query(
             `UPDATE chatbot_configs 
-       SET greeting_message = $1, questions = $2
-       WHERE organization_id = $3`,
-            [greetingMessage, JSON.stringify(questions), organizationId]
+             SET greeting_message = $1, questions = $2, ai_rules = $3, tone = $4
+             WHERE organization_id = $5`,
+            [greetingMessage, JSON.stringify(questions), aiRules, tone, organizationId]
         );
 
-        // Update organization WhatsApp phone if provided
-        if (whatsappPhone) {
-            await pool.query(
-                'UPDATE organizations SET phone = $1 WHERE id = $2',
-                [whatsappPhone, organizationId]
-            );
-        }
+        // Update organization
+        await pool.query(
+            `UPDATE organizations 
+             SET phone = $1, description = $2, working_hours = $3,
+                 service_locations = $4, website = $5, email_notifications = $6
+             WHERE id = $7`,
+            [whatsappPhone, description, workingHours, serviceLocations, website, emailNotifications, organizationId]
+        );
 
         res.json({ message: 'Settings updated successfully' });
 

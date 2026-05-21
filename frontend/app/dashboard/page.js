@@ -173,10 +173,10 @@ export default function DashboardPage() {
 
                     <a href="/billing" style={{
                         padding: '6px 14px',
-                        background: isActive ? 'rgba(52,211,153,0.08)' : 'rgba(79,140,255,0.08)',
-                        border: `1px solid ${isActive ? 'rgba(52,211,153,0.25)' : 'rgba(79,140,255,0.25)'}`,
+                        background: isActive ? 'rgba(52,211,153,0.08)' : billingStatus?.isTrialActive ? 'rgba(245,158,11,0.08)' : 'rgba(248,113,113,0.08)',
+                        border: `1px solid ${isActive ? 'rgba(52,211,153,0.25)' : billingStatus?.isTrialActive ? 'rgba(245,158,11,0.25)' : 'rgba(248,113,113,0.25)'}`,
                         borderRadius: '8px',
-                        color: isActive ? '#34d399' : S.accent,
+                        color: isActive ? '#34d399' : billingStatus?.isTrialActive ? '#f59e0b' : '#f87171',
                         fontSize: '12px', fontWeight: 600,
                         textDecoration: 'none',
                         transition: 'all 180ms ease'
@@ -184,7 +184,11 @@ export default function DashboardPage() {
                         onMouseEnter={e => e.currentTarget.style.opacity = '0.8'}
                         onMouseLeave={e => e.currentTarget.style.opacity = '1'}
                     >
-                        {isActive ? '✓ Pro' : '💳 Billing'}
+                        {isActive
+                            ? '✓ Pro'
+                            : billingStatus?.isTrialActive
+                                ? `⏳ Trial - ${billingStatus.trialDaysRemaining}d left`
+                                : '⚠️ Trial Expired'}
                     </a>
 
                     <a href="/dashboard/settings" style={{

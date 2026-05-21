@@ -17,8 +17,8 @@ const register = async (req, res) => {
 
         // Create organization
         const org = await pool.query(
-            `INSERT INTO organizations (name, email, phone)
-       VALUES ($1, $2, $3) RETURNING id`,
+            `INSERT INTO organizations (name, email, phone, subscription_status, subscription_plan, trial_ends_at)
+           VALUES ($1, $2, $3, 'trial', 'trial', NOW() + INTERVAL '14 days') RETURNING id`,
             [orgName, email, phone]
         );
         const organizationId = org.rows[0].id;
