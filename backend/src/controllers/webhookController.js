@@ -234,7 +234,7 @@ const handleMessage = async (req, res) => {
                 `👤 Name: ${contactName}\n` +
                 `📱 Phone: +${from}\n` +
                 `💬 Message: "${messageText}"\n\n` +
-                `View dashboard: https://saas-mvp-one.vercel.app/dashboard`;
+                `View dashboard: https://ourivo.com/dashboard`;
 
             // WhatsApp notification
             if (ownerPhone) {
