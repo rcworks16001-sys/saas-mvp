@@ -191,6 +191,27 @@ export default function DashboardPage() {
                                 : '⚠️ Trial Expired'}
                     </a>
 
+                    <a href="/dashboard/followups" style={{
+                        padding: '6px 14px',
+                        background: 'transparent',
+                        border: `1px solid ${S.border}`,
+                        borderRadius: '8px',
+                        color: S.textSecondary, fontSize: '12px',
+                        fontWeight: 500, textDecoration: 'none',
+                        transition: 'all 180ms ease'
+                    }}
+                        onMouseEnter={e => {
+                            e.currentTarget.style.borderColor = S.accent;
+                            e.currentTarget.style.color = S.accent;
+                        }}
+                        onMouseLeave={e => {
+                            e.currentTarget.style.borderColor = S.border;
+                            e.currentTarget.style.color = S.textSecondary;
+                        }}
+                    >
+                        🔄 Follow-ups
+                    </a>
+
                     <a href="/dashboard/settings" style={{
                         padding: '6px 14px',
                         background: 'transparent',
