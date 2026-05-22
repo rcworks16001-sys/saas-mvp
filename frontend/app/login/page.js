@@ -99,10 +99,8 @@ export default function LoginPage() {
 
                     {/* Logo */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <div style={{ width: '32px', height: '32px', borderRadius: '9px', background: `linear-gradient(135deg, ${S.accent}, #6366f1)`, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: `0 0 16px rgba(79,140,255,0.35)` }}>
-                            <span style={{ color: 'white', fontWeight: 800, fontSize: '14px' }}>O</span>
-                        </div>
-                        <span style={{ fontWeight: 800, fontSize: '15px' }}>
+                        <img src="/logo.png" alt="Ourivo" style={{ width: '45px', height: '45px', objectFit: 'contain' }} />
+                        <span style={{ fontWeight: 800, fontSize: '20px', letterSpacing: '0.01em', fontFamily: 'Georgia, serif' }}>
                             <span style={{ color: S.textPrimary }}>Our</span><span style={{ color: S.accent }}>ivo</span>
                         </span>
                     </div>

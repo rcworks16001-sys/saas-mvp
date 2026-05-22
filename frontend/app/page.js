@@ -75,8 +75,8 @@ export default function LandingPage() {
           backdropFilter: 'blur(12px)',
           position: 'sticky', top: 0, zIndex: 100
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0px' }}>
-            <img src="/logo.png" alt="Ourivo" style={{ width: '160px', height: '160px', objectFit: 'contain' }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <img src="/logo.png" alt="Ourivo" style={{ width: '54px', height: '54px', objectFit: 'contain' }} />
             <span style={{ fontWeight: 800, fontSize: '22px', letterSpacing: '0.01em', fontFamily: 'var(--font-serif)' }}>
               <span style={{ color: '#F5F7FA' }}>Our</span><span style={{ color: S.accent }}>ivo</span>
             </span>
