@@ -48,7 +48,7 @@ const sendWhatsAppMessage = async (to, message) => {
 const sendEmailNotification = async (toEmail, orgName, contactName, phone, messageText) => {
     try {
         await resend.emails.send({
-            from: 'WhatsApp CRM <onboarding@resend.dev>',
+            from: 'Ourivo <noreply@ourivo.com>',
             to: toEmail,
             subject: `🔔 New Lead: ${contactName}`,
             html: `
