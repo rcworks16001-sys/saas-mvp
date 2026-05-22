@@ -202,10 +202,8 @@ export default function LeadDetailPage() {
             {/* Navbar */}
             <nav style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 32px', height: '58px', background: S.surface, borderBottom: `1px solid ${S.border}`, position: 'sticky', top: 0, zIndex: 100 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: `linear-gradient(135deg, ${S.accent}, #6366f1)`, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: `0 0 14px rgba(79,140,255,0.35)` }}>
-                        <span style={{ color: 'white', fontWeight: 800, fontSize: '12px' }}>O</span>
-                    </div>
-                    <span style={{ fontWeight: 800, fontSize: '15px' }}>
+                    <img src="/logo.png" alt="Ourivo" style={{ width: '36px', height: '36px', objectFit: 'contain' }} />
+                    <span style={{ fontWeight: 800, fontSize: '16px', fontFamily: 'Georgia, serif' }}>
                         <span style={{ color: S.textPrimary }}>Our</span><span style={{ color: S.accent }}>ivo</span>
                     </span>
                 </div>

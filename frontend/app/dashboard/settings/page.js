@@ -40,6 +40,8 @@ export default function SettingsPage() {
     const [sandboxOpen, setSandboxOpen] = useState(false);
     const [sandboxMessages, setSandboxMessages] = useState([]);
     const [sandboxInput, setSandboxInput] = useState('');
+    const [showDeleteAccount, setShowDeleteAccount] = useState(false);
+    const [deletingAccount, setDeletingAccount] = useState(false);
     const sandboxEndRef = useRef(null);
 
     const [orgName, setOrgName] = useState('');
@@ -96,6 +98,22 @@ export default function SettingsPage() {
             const response = await api.get('/billing/status');
             setBillingStatus(response.data);
         } catch (error) { }
+    };
+
+    const handleDeleteAccount = async () => {
+        setDeletingAccount(true);
+        try {
+            await api.delete('/auth/delete-account');
+            toast.success('Account deleted');
+            Cookies.remove('token');
+            Cookies.remove('organizationId');
+            Cookies.remove('userName');
+            router.push('/');
+        } catch (error) {
+            toast.error('Failed to delete account');
+            setDeletingAccount(false);
+            setShowDeleteAccount(false);
+        }
     };
 
     const switchTab = (tab) => {
@@ -215,6 +233,31 @@ export default function SettingsPage() {
     return (
         <div style={{ minHeight: '100vh', background: S.bg, fontFamily: 'var(--font-family)', color: S.textPrimary }}>
 
+            {/* Delete Account Modal */}
+            {showDeleteAccount && (
+                <div style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <div style={{ background: S.surface, border: `1px solid rgba(239,68,68,0.3)`, borderRadius: '16px', padding: '32px', maxWidth: '400px', width: '90%', textAlign: 'center' }}>
+                        <div style={{ fontSize: '36px', marginBottom: '16px' }}>⚠️</div>
+                        <h3 style={{ fontSize: '18px', fontWeight: 700, color: S.textPrimary, marginBottom: '8px' }}>Delete your account?</h3>
+                        <p style={{ fontSize: '13px', color: S.textSecondary, lineHeight: 1.7, marginBottom: '8px' }}>This will permanently delete:</p>
+                        <div style={{ fontSize: '13px', color: S.textMuted, marginBottom: '24px', lineHeight: 1.8 }}>
+                            • All your leads and conversations<br />
+                            • Your chatbot settings<br />
+                            • Your account and login<br />
+                            • Subscription cancelled — no more charges
+                        </div>
+                        <div style={{ display: 'flex', gap: '10px' }}>
+                            <button onClick={() => setShowDeleteAccount(false)} disabled={deletingAccount} style={{ flex: 1, padding: '11px', borderRadius: '8px', border: `1px solid ${S.border}`, background: 'transparent', color: S.textSecondary, fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-family)' }}>
+                                Cancel
+                            </button>
+                            <button onClick={handleDeleteAccount} disabled={deletingAccount} style={{ flex: 1, padding: '11px', borderRadius: '8px', border: 'none', background: '#ef4444', color: 'white', fontSize: '13px', fontWeight: 600, cursor: deletingAccount ? 'not-allowed' : 'pointer', fontFamily: 'var(--font-family)', opacity: deletingAccount ? 0.6 : 1 }}>
+                                {deletingAccount ? 'Deleting...' : 'Yes, Delete Everything'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Sandbox panel */}
             <div style={{
                 position: 'fixed', top: 0, right: 0, bottom: 0, width: '360px',
@@ -245,14 +288,8 @@ export default function SettingsPage() {
                         </div>
                     )}
                     {sandboxMessages.map((msg, i) => (
-                        <div key={i} style={{ display: 'flex', justifyContent: msg.sender === 'user' ? 'flex-end' : 'flex-start', animation: 'fadeSlideIn 0.2s ease' }}>
-                            <div style={{
-                                maxWidth: '80%', padding: '10px 14px',
-                                borderRadius: msg.sender === 'user' ? '14px 4px 14px 14px' : '4px 14px 14px 14px',
-                                background: msg.sender === 'user' ? 'rgba(79,140,255,0.2)' : S.surface2,
-                                border: `1px solid ${msg.sender === 'user' ? 'rgba(79,140,255,0.3)' : S.border}`,
-                                fontSize: '13px', color: S.textSecondary, lineHeight: 1.6, whiteSpace: 'pre-line'
-                            }}>
+                        <div key={i} style={{ display: 'flex', justifyContent: msg.sender === 'user' ? 'flex-end' : 'flex-start' }}>
+                            <div style={{ maxWidth: '80%', padding: '10px 14px', borderRadius: msg.sender === 'user' ? '14px 4px 14px 14px' : '4px 14px 14px 14px', background: msg.sender === 'user' ? 'rgba(79,140,255,0.2)' : S.surface2, border: `1px solid ${msg.sender === 'user' ? 'rgba(79,140,255,0.3)' : S.border}`, fontSize: '13px', color: S.textSecondary, lineHeight: 1.6, whiteSpace: 'pre-line' }}>
                                 <div style={{ fontSize: '10px', fontWeight: 700, color: msg.sender === 'user' ? S.accent : '#a78bfa', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                                     {msg.sender === 'user' ? 'Lead' : 'Bot'}
                                 </div>
@@ -270,14 +307,14 @@ export default function SettingsPage() {
 
             {/* Navbar */}
             <nav style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 32px', height: '58px', background: S.surface, borderBottom: `1px solid ${S.border}`, position: 'sticky', top: 0, zIndex: 100 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: S.accent, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: `0 0 14px rgba(79,140,255,0.35)` }}>
-                        <span style={{ color: 'white', fontWeight: 700, fontSize: '12px' }}>W</span>
-                    </div>
-                    <span style={{ color: S.textPrimary, fontWeight: 600, fontSize: '14px' }}>WhatsApp CRM</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <img src="/logo.png" alt="Ourivo" style={{ width: '36px', height: '36px', objectFit: 'contain' }} />
+                    <span style={{ fontWeight: 800, fontSize: '16px', fontFamily: 'Georgia, serif' }}>
+                        <span style={{ color: S.textPrimary }}>Our</span><span style={{ color: S.accent }}>ivo</span>
+                    </span>
                 </div>
                 <Link href="/dashboard" style={{ padding: '6px 14px', background: 'transparent', border: `1px solid ${S.border}`, borderRadius: '8px', color: S.textSecondary, fontSize: '13px', fontWeight: 500, textDecoration: 'none' }}>
-                    ← Back to Dashboard
+                    {'← Back to Dashboard'}
                 </Link>
             </nav>
 
@@ -286,7 +323,6 @@ export default function SettingsPage() {
 
                 {/* Left Sidebar */}
                 <div style={{ width: '240px', background: S.surface, borderRight: `1px solid ${S.border}`, padding: '24px 12px', flexShrink: 0, position: 'sticky', top: '58px', height: 'calc(100vh - 58px)', overflowY: 'auto' }}>
-
                     <div style={{ padding: '0 8px', marginBottom: '20px' }}>
                         <div style={{ fontSize: '11px', fontWeight: 700, color: S.textMuted, letterSpacing: '0.1em', textTransform: 'uppercase' }}>Settings</div>
                     </div>
@@ -312,9 +348,7 @@ export default function SettingsPage() {
                                 )}
                                 <span style={{ fontSize: '18px', flexShrink: 0 }}>{item.icon}</span>
                                 <div>
-                                    <div style={{ fontSize: '13px', fontWeight: isActive ? 700 : 500, color: isActive ? S.textPrimary : S.textSecondary, transition: 'all 200ms ease' }}>
-                                        {item.label}
-                                    </div>
+                                    <div style={{ fontSize: '13px', fontWeight: isActive ? 700 : 500, color: isActive ? S.textPrimary : S.textSecondary, transition: 'all 200ms ease' }}>{item.label}</div>
                                     <div style={{ fontSize: '11px', color: S.textMuted, marginTop: '1px' }}>{item.desc}</div>
                                 </div>
                             </button>
@@ -324,14 +358,7 @@ export default function SettingsPage() {
                     {activeTab === 'Chatbot' && (
                         <div style={{ marginTop: '20px', padding: '0 4px' }}>
                             <div style={{ height: '1px', background: S.border, marginBottom: '16px' }} />
-                            <button onClick={() => setSandboxOpen(!sandboxOpen)} style={{
-                                width: '100%', padding: '10px 12px',
-                                background: sandboxOpen ? 'rgba(79,140,255,0.12)' : 'rgba(79,140,255,0.06)',
-                                border: `1px solid rgba(79,140,255,0.2)`, borderRadius: '10px',
-                                cursor: 'pointer', fontFamily: 'var(--font-family)',
-                                display: 'flex', alignItems: 'center', gap: '10px',
-                                transition: 'all 200ms ease'
-                            }}>
+                            <button onClick={() => setSandboxOpen(!sandboxOpen)} style={{ width: '100%', padding: '10px 12px', background: sandboxOpen ? 'rgba(79,140,255,0.12)' : 'rgba(79,140,255,0.06)', border: `1px solid rgba(79,140,255,0.2)`, borderRadius: '10px', cursor: 'pointer', fontFamily: 'var(--font-family)', display: 'flex', alignItems: 'center', gap: '10px', transition: 'all 200ms ease' }}>
                                 <span style={{ fontSize: '16px' }}>🧪</span>
                                 <div style={{ textAlign: 'left' }}>
                                     <div style={{ fontSize: '12px', fontWeight: 700, color: S.accent }}>Test Chatbot</div>
@@ -345,8 +372,6 @@ export default function SettingsPage() {
 
                 {/* Content area */}
                 <div style={{ flex: 1, padding: '32px 40px', maxWidth: '720px' }}>
-
-                    {/* Page header */}
                     <div style={{ marginBottom: '28px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '6px' }}>
                             <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: 'linear-gradient(135deg, rgba(79,140,255,0.2), rgba(99,102,241,0.15))', border: `1px solid rgba(79,140,255,0.2)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }}>
@@ -359,7 +384,6 @@ export default function SettingsPage() {
                         </p>
                     </div>
 
-                    {/* Content with animation */}
                     <div style={{ animation: animating ? 'slideOut 0.22s ease forwards' : 'slideIn 0.3s ease forwards' }}>
 
                         {/* ACCOUNT TAB */}
@@ -373,20 +397,17 @@ export default function SettingsPage() {
                                     <p style={{ fontSize: '12px', color: S.textMuted, marginBottom: '20px', lineHeight: 1.6, paddingLeft: '24px' }}>
                                         Used by your AI chatbot to answer questions about your business accurately.
                                     </p>
-
                                     <div style={{ marginBottom: '16px' }}>
                                         <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: S.textSecondary, marginBottom: '8px' }}>Business Name</label>
                                         <input type="text" value={orgName} disabled style={{ ...inputStyle, opacity: 0.5, cursor: 'not-allowed' }} />
                                         <p style={{ fontSize: '11px', color: S.textMuted, marginTop: '4px' }}>Contact support to change your business name</p>
                                     </div>
-
                                     <div style={{ marginBottom: '16px' }}>
                                         <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: S.textSecondary, marginBottom: '8px' }}>Business Description</label>
                                         <textarea value={description} onChange={e => setDescription(e.target.value)} rows={3}
-                                            placeholder="e.g. We are a premium real estate agency in Bangalore specializing in residential properties in Whitefield and Electronic City."
+                                            placeholder="e.g. We are a premium real estate agency in Bangalore specializing in residential properties."
                                             style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.6 }} {...focusHandlers} />
                                     </div>
-
                                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
                                         <div>
                                             <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: S.textSecondary, marginBottom: '8px' }}>Working Hours</label>
@@ -397,7 +418,6 @@ export default function SettingsPage() {
                                             <input type="text" value={website} onChange={e => setWebsite(e.target.value)} placeholder="e.g. www.sharmaproperties.com" style={inputStyle} {...focusHandlers} />
                                         </div>
                                     </div>
-
                                     <div>
                                         <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: S.textSecondary, marginBottom: '8px' }}>Service Locations</label>
                                         <input type="text" value={serviceLocations} onChange={e => setServiceLocations(e.target.value)}
@@ -443,7 +463,7 @@ export default function SettingsPage() {
                                     </p>
 
                                     {showSuggestions && (
-                                        <div style={{ background: 'rgba(167,139,250,0.05)', border: `1px solid rgba(167,139,250,0.15)`, borderRadius: '12px', padding: '16px', marginBottom: '16px', animation: 'fadeSlideIn 0.2s ease' }}>
+                                        <div style={{ background: 'rgba(167,139,250,0.05)', border: `1px solid rgba(167,139,250,0.15)`, borderRadius: '12px', padding: '16px', marginBottom: '16px' }}>
                                             <p style={{ fontSize: '12px', color: '#a78bfa', fontWeight: 600, marginBottom: '12px' }}>💡 Real estate questions — click to add</p>
                                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                                                 {QUESTION_SUGGESTIONS.map((s, i) => (
@@ -458,7 +478,7 @@ export default function SettingsPage() {
                                     )}
 
                                     {questions.map((q, i) => (
-                                        <div key={i} style={{ padding: '14px 16px', background: S.surface2, border: `1px solid ${S.border}`, borderRadius: '10px', marginBottom: '10px', animation: 'fadeSlideIn 0.2s ease' }}>
+                                        <div key={i} style={{ padding: '14px 16px', background: S.surface2, border: `1px solid ${S.border}`, borderRadius: '10px', marginBottom: '10px' }}>
                                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                     <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: `linear-gradient(135deg, ${S.accent}, #6366f1)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', color: 'white', fontWeight: 700 }}>
@@ -518,7 +538,6 @@ export default function SettingsPage() {
                                         <span style={{ fontSize: '16px' }}>📱</span>
                                         <h3 style={{ fontSize: '13px', fontWeight: 700, color: S.textPrimary }}>Notification Channels</h3>
                                     </div>
-
                                     <div style={{ marginBottom: '20px' }}>
                                         <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: S.textSecondary, marginBottom: '8px' }}>WhatsApp Notification Number</label>
                                         <input type="text" value={whatsappPhone} onChange={e => setWhatsappPhone(e.target.value)}
@@ -526,7 +545,6 @@ export default function SettingsPage() {
                                             style={inputStyle} {...focusHandlers} />
                                         <p style={{ fontSize: '11px', color: S.textMuted, marginTop: '4px' }}>You will receive a WhatsApp message here when a new lead arrives</p>
                                     </div>
-
                                     <div>
                                         <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: S.textSecondary, marginBottom: '8px' }}>Email Notifications</label>
                                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', background: S.surface2, border: `1px solid ${S.border}`, borderRadius: '12px' }}>
@@ -534,7 +552,7 @@ export default function SettingsPage() {
                                                 <div style={{ fontSize: '13px', color: S.textPrimary, fontWeight: 500 }}>Send email on new lead</div>
                                                 <div style={{ fontSize: '11px', color: S.textMuted, marginTop: '2px' }}>Sent to: {orgEmail || 'your registered email'}</div>
                                             </div>
-                                            <div onClick={() => setEmailNotifications(!emailNotifications)} style={{ width: '44px', height: '24px', background: emailNotifications ? `linear-gradient(135deg, ${S.accent}, #6366f1)` : S.border, borderRadius: '999px', cursor: 'pointer', position: 'relative', transition: 'all 250ms ease', boxShadow: emailNotifications ? '0 2px 8px rgba(79,140,255,0.4)' : 'none' }}>
+                                            <div onClick={() => setEmailNotifications(!emailNotifications)} style={{ width: '44px', height: '24px', background: emailNotifications ? `linear-gradient(135deg, ${S.accent}, #6366f1)` : S.border, borderRadius: '999px', cursor: 'pointer', position: 'relative', transition: 'all 250ms ease' }}>
                                                 <div style={{ position: 'absolute', top: '3px', left: emailNotifications ? '22px' : '3px', width: '18px', height: '18px', background: 'white', borderRadius: '50%', transition: 'all 250ms cubic-bezier(0.4, 0, 0.2, 1)', boxShadow: '0 1px 4px rgba(0,0,0,0.3)' }} />
                                             </div>
                                         </div>
@@ -602,10 +620,26 @@ export default function SettingsPage() {
                                             <h3 style={{ fontSize: '13px', fontWeight: 700, color: S.textPrimary }}>Manage Subscription</h3>
                                         </div>
                                         <p style={{ fontSize: '13px', color: S.textMuted, lineHeight: 1.7 }}>
-                                            To cancel or request a refund, contact us at <span style={{ color: S.accent }}>support@whatsappcrm.in</span>
+                                            To cancel or request a refund, contact us at <span style={{ color: S.accent }}>support@ourivo.com</span>
                                         </p>
                                     </div>
                                 )}
+
+                                {/* Danger Zone */}
+                                <div style={{ ...sectionStyle, border: `1px solid rgba(239,68,68,0.2)`, background: 'rgba(239,68,68,0.03)', marginTop: '16px' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                                        <span style={{ fontSize: '16px' }}>⚠️</span>
+                                        <h3 style={{ fontSize: '13px', fontWeight: 700, color: '#f87171' }}>Danger Zone</h3>
+                                    </div>
+                                    <p style={{ fontSize: '13px', color: S.textMuted, lineHeight: 1.7, marginBottom: '16px' }}>
+                                        Permanently delete your account and all data. This cannot be undone. Your subscription will be cancelled immediately with no further charges.
+                                    </p>
+                                    <button onClick={() => setShowDeleteAccount(true)} style={{ padding: '10px 20px', background: 'transparent', border: '1px solid rgba(239,68,68,0.4)', borderRadius: '8px', color: '#f87171', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-family)', transition: 'all 180ms ease' }}
+                                        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.08)'; e.currentTarget.style.borderColor = '#ef4444'; }}
+                                        onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'rgba(239,68,68,0.4)'; }}>
+                                        Delete Account
+                                    </button>
+                                </div>
                             </div>
                         )}
                     </div>

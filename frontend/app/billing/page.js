@@ -128,17 +128,10 @@ export default function BillingPage() {
                 borderBottom: `1px solid ${S.border}`,
                 position: 'sticky', top: 0, zIndex: 100
             }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <div style={{
-                        width: '28px', height: '28px', borderRadius: '8px',
-                        background: S.accent,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        boxShadow: `0 0 14px rgba(79,140,255,0.35)`
-                    }}>
-                        <span style={{ color: 'white', fontWeight: 700, fontSize: '12px' }}>W</span>
-                    </div>
-                    <span style={{ color: S.textPrimary, fontWeight: 600, fontSize: '14px' }}>
-                        WhatsApp CRM
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <img src="/logo.png" alt="Ourivo" style={{ width: '36px', height: '36px', objectFit: 'contain' }} />
+                    <span style={{ fontWeight: 800, fontSize: '16px', fontFamily: 'Georgia, serif' }}>
+                        <span style={{ color: S.textPrimary }}>Our</span><span style={{ color: S.accent }}>ivo</span>
                     </span>
                 </div>
                 <Link href="/dashboard" style={{
@@ -150,7 +143,7 @@ export default function BillingPage() {
                     color: S.textSecondary, fontSize: '13px',
                     fontWeight: 500, textDecoration: 'none'
                 }}>
-                    ← Back to Dashboard
+                    {'← Back to Dashboard'}
                 </Link>
             </nav>
 
