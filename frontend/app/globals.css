@@ -9,6 +9,11 @@
 }
 
 :root {
+  --font-family: var(--font-inter), 'Inter', sans-serif;
+  --font-serif: var(--font-playfair), 'Playfair Display', serif;
+}
+
+:root {
   /* Color System */
   --color-bg: #0F1115;
   --color-surface: #161A22;

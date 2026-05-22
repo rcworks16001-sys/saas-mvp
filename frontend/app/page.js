@@ -75,17 +75,10 @@ export default function LandingPage() {
           backdropFilter: 'blur(12px)',
           position: 'sticky', top: 0, zIndex: 100
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{
-              width: '32px', height: '32px', borderRadius: '9px',
-              background: `linear-gradient(135deg, ${S.accent}, #6366f1)`,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: `0 0 16px rgba(79,140,255,0.35)`
-            }}>
-              <span style={{ color: 'white', fontWeight: 800, fontSize: '14px' }}>O</span>
-            </div>
-            <span style={{ fontWeight: 800, fontSize: '16px', letterSpacing: '-0.01em' }}>
-              <span style={{ color: S.textPrimary }}>Our</span><span style={{ color: S.accent }}>ivo</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0px' }}>
+            <img src="/logo.png" alt="Ourivo" style={{ width: '160px', height: '160px', objectFit: 'contain' }} />
+            <span style={{ fontWeight: 800, fontSize: '22px', letterSpacing: '0.01em', fontFamily: 'var(--font-serif)' }}>
+              <span style={{ color: '#F5F7FA' }}>Our</span><span style={{ color: S.accent }}>ivo</span>
             </span>
           </div>
 
@@ -136,7 +129,8 @@ export default function LandingPage() {
           <h1 style={{
             fontSize: '56px', fontWeight: 800,
             color: S.textPrimary, lineHeight: 1.12,
-            letterSpacing: '-0.03em', marginBottom: '24px'
+            letterSpacing: '-0.02em', marginBottom: '24px',
+            fontFamily: 'var(--font-serif)'
           }}>
             Your AI sales assistant<br />
             <span style={{
@@ -222,12 +216,12 @@ export default function LandingPage() {
             ))}
           </div>
         </section>
-
+        <span style={{ color: 'white', fontWeight: 800, fontSize: '14px' }}>O</span>
         {/* ── FEATURES ── */}
         <section style={{ padding: '80px 48px', background: S.surface, borderTop: `1px solid ${S.border}`, borderBottom: `1px solid ${S.border}` }}>
           <div style={{ maxWidth: '960px', margin: '0 auto' }}>
             <div style={{ textAlign: 'center', marginBottom: '56px' }}>
-              <h2 style={{ fontSize: '36px', fontWeight: 700, color: S.textPrimary, letterSpacing: '-0.02em', marginBottom: '12px' }}>
+              <h2 style={{ fontSize: '36px', fontWeight: 700, color: S.textPrimary, letterSpacing: '-0.02em', marginBottom: '12px', fontFamily: 'var(--font-serif)' }}>
                 Everything you need to close more deals
               </h2>
               <p style={{ fontSize: '15px', color: S.textSecondary, maxWidth: '500px', margin: '0 auto' }}>
@@ -268,7 +262,7 @@ export default function LandingPage() {
         {/* ── HOW IT WORKS ── */}
         <section style={{ padding: '80px 48px' }}>
           <div style={{ maxWidth: '700px', margin: '0 auto', textAlign: 'center' }}>
-            <h2 style={{ fontSize: '36px', fontWeight: 700, color: S.textPrimary, letterSpacing: '-0.02em', marginBottom: '12px' }}>
+            <h2 style={{ fontSize: '36px', fontWeight: 700, color: S.textPrimary, letterSpacing: '-0.02em', marginBottom: '12px', fontFamily: 'var(--font-serif)' }}>
               Up and running in 5 minutes
             </h2>
             <p style={{ fontSize: '15px', color: S.textSecondary, marginBottom: '56px' }}>
@@ -327,7 +321,7 @@ export default function LandingPage() {
         {/* ── PRICING ── */}
         <section style={{ padding: '80px 48px' }}>
           <div style={{ maxWidth: '480px', margin: '0 auto', textAlign: 'center' }}>
-            <h2 style={{ fontSize: '36px', fontWeight: 700, color: S.textPrimary, letterSpacing: '-0.02em', marginBottom: '12px' }}>
+            <h2 style={{ fontSize: '36px', fontWeight: 700, color: S.textPrimary, letterSpacing: '-0.02em', marginBottom: '12px', fontFamily: 'var(--font-serif)' }}>
               Simple, honest pricing
             </h2>
             <p style={{ fontSize: '15px', color: S.textSecondary, marginBottom: '40px' }}>
