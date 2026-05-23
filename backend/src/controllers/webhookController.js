@@ -131,37 +131,82 @@ const getChatbotConfig = async (organizationId) => {
 };
 
 // ── AI response logic ──
-const getAIResponse = async (userMessage, lead, config) => {
+const getAIResponse = async (userMessage, lead, config, orgInfo) => {
     try {
+        const Anthropic = require('@anthropic-ai/sdk');
+        const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
         const questions = config?.questions || [];
         const requirements = lead.requirements || {};
         const answeredKeys = Object.keys(requirements);
-        const nextQuestion = questions.find(q => !answeredKeys.includes(q.key));
 
-        if (!nextQuestion) {
-            return `Thank you! I have captured all your details. Our team will contact you shortly at ${lead.phone}. Have a great day!`;
-        }
-
-        if (answeredKeys.length === 0) {
-            const greeting = config?.greeting_message || 'Hello! How can I help you today?';
-            return `${greeting}\n\n${nextQuestion.question}`;
-        }
-
+        // Save the latest answer before generating next response
         const lastAskedKey = questions[answeredKeys.length - 1]?.key;
-        if (lastAskedKey) {
+        if (lastAskedKey && answeredKeys.length > 0) {
             const updatedRequirements = { ...requirements, [lastAskedKey]: userMessage };
             await pool.query(
                 'UPDATE leads SET requirements = $1, updated_at = NOW() WHERE id = $2',
                 [JSON.stringify(updatedRequirements), lead.id]
             );
-            await updateLeadScore(lead.id);
+            requirements[lastAskedKey] = userMessage;
         }
 
-        return nextQuestion.question;
+        // Check if all questions answered
+        const updatedAnsweredKeys = Object.keys(requirements);
+        const nextQuestion = questions.find(q => !updatedAnsweredKeys.includes(q.key));
+
+        // Build context for Claude
+        const businessContext = `
+You are a helpful WhatsApp sales assistant for ${orgInfo?.name || 'a real estate business'}.
+${orgInfo?.description ? `About the business: ${orgInfo.description}` : ''}
+${orgInfo?.service_locations ? `Service areas: ${orgInfo.service_locations}` : ''}
+${orgInfo?.working_hours ? `Working hours: ${orgInfo.working_hours}` : ''}
+${config?.ai_rules ? `Rules to follow:\n${config.ai_rules}` : ''}
+Tone: ${config?.tone || 'professional'}
+
+Your job is to:
+1. Be helpful and answer any questions the customer has about real estate or the business
+2. Naturally collect lead information by asking qualifying questions one at a time
+3. Never be pushy or salesy
+4. Keep responses short and conversational (2-3 sentences max)
+5. Always respond in the same language the customer uses
+
+Current lead information collected so far:
+${Object.entries(requirements).map(([k, v]) => `- ${k}: ${v}`).join('\n') || 'Nothing collected yet'}
+
+${nextQuestion ? `Next question to ask (work it in naturally): "${nextQuestion.question}"` : 'All qualifying questions answered. Thank the customer and tell them the team will contact them shortly.'}
+
+Greeting message to use when first responding: "${config?.greeting_message || 'Hello! How can I help you today?'}"
+        `.trim();
+
+        const isFirstMessage = updatedAnsweredKeys.length === 0 && !lastAskedKey;
+
+        const response = await anthropic.messages.create({
+            model: 'claude-haiku-4-5-20251001',
+            max_tokens: 200,
+            system: businessContext,
+            messages: [
+                {
+                    role: 'user',
+                    content: isFirstMessage
+                        ? `Customer just started a conversation with: "${userMessage}". Greet them warmly and ask the first qualifying question naturally.`
+                        : userMessage
+                }
+            ]
+        });
+
+        return response.content[0].text;
 
     } catch (error) {
         console.error('AI response error:', error);
-        return "Thank you for your message! Our team will get back to you shortly.";
+        // Fallback to simple flow if Claude fails
+        const questions = config?.questions || [];
+        const requirements = lead.requirements || {};
+        const answeredKeys = Object.keys(requirements);
+        const nextQuestion = questions.find(q => !answeredKeys.includes(q.key));
+        if (!nextQuestion) return `Thank you! I have captured all your details. Our team will contact you shortly.`;
+        if (answeredKeys.length === 0) return `${config?.greeting_message || 'Hello!'}\n\n${nextQuestion.question}`;
+        return nextQuestion.question;
     }
 };
 
@@ -225,7 +270,12 @@ const handleMessage = async (req, res) => {
 
         // Generate and send bot response
         const config = await getChatbotConfig(organizationId);
-        const response = await getAIResponse(messageText, lead, config);
+        const orgInfoResult = await pool.query(
+            'SELECT name, description, service_locations, working_hours FROM organizations WHERE id = $1',
+            [organizationId]
+        );
+        const orgInfo = orgInfoResult.rows[0];
+        const response = await getAIResponse(messageText, lead, config, orgInfo);
         await saveMessage(organizationId, lead.id, response, 'bot');
         await sendWhatsAppMessage(from, response);
 
