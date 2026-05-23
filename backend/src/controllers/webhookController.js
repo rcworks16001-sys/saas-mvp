@@ -137,49 +137,58 @@ const getAIResponse = async (userMessage, lead, config, orgInfo) => {
         const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
         const questions = config?.questions || [];
-        const requirements = lead.requirements || {};
+
+        // Always fetch fresh requirements from DB
+        const freshLead = await pool.query('SELECT * FROM leads WHERE id = $1', [lead.id]);
+        const requirements = freshLead.rows[0]?.requirements || {};
         const answeredKeys = Object.keys(requirements);
 
-        // Save the latest answer before generating next response
-        const lastAskedKey = questions[answeredKeys.length - 1]?.key;
-        if (lastAskedKey && answeredKeys.length > 0) {
+        // Figure out which question was last asked
+        const lastAskedIndex = answeredKeys.length;
+        const lastAskedKey = questions[lastAskedIndex - 1]?.key;
+
+        // Save current answer if there was a pending question
+        if (lastAskedKey && !requirements[lastAskedKey]) {
             const updatedRequirements = { ...requirements, [lastAskedKey]: userMessage };
             await pool.query(
                 'UPDATE leads SET requirements = $1, updated_at = NOW() WHERE id = $2',
                 [JSON.stringify(updatedRequirements), lead.id]
             );
-            requirements[lastAskedKey] = userMessage;
+            Object.assign(requirements, updatedRequirements);
+            await updateLeadScore(lead.id);
         }
 
-        // Check if all questions answered
         const updatedAnsweredKeys = Object.keys(requirements);
         const nextQuestion = questions.find(q => !updatedAnsweredKeys.includes(q.key));
 
-        // Define isFirstMessage BEFORE using it in businessContext
-        const isFirstMessage = updatedAnsweredKeys.length === 0 && !lastAskedKey;
+        // Count total conversations to determine if this is truly first message
+        const convCount = await pool.query(
+            'SELECT COUNT(*) FROM conversations WHERE lead_id = $1',
+            [lead.id]
+        );
+        const isFirstMessage = parseInt(convCount.rows[0].count) <= 1;
 
-        // Build context for Claude
         const businessContext = `
-You are a helpful WhatsApp sales assistant for ${orgInfo?.name || 'a real estate business'}.
+You are a friendly WhatsApp sales assistant for ${orgInfo?.name || 'a real estate business'}.
 ${orgInfo?.description ? `About the business: ${orgInfo.description}` : ''}
 ${orgInfo?.service_locations ? `Service areas: ${orgInfo.service_locations}` : ''}
 ${orgInfo?.working_hours ? `Working hours: ${orgInfo.working_hours}` : ''}
-${config?.ai_rules ? `Rules to follow:\n${config.ai_rules}` : ''}
+${config?.ai_rules ? `Important rules:\n${config.ai_rules}` : ''}
 Tone: ${config?.tone || 'professional'}
 
-Your job is to:
-1. Be helpful and answer any questions the customer has about real estate or the business
-2. Naturally collect lead information by asking qualifying questions one at a time
-3. Never be pushy or salesy
-4. Keep responses short and conversational (2-3 sentences max)
-5. Always respond in the same language the customer uses
+Rules:
+1. Answer any questions the customer asks naturally
+2. Work in qualifying questions one at a time during natural conversation
+3. Never be pushy
+4. Keep responses to 2-3 sentences max
+5. Respond in the same language as the customer
+6. NEVER repeat a greeting after the first message
+7. Do not introduce yourself again after the first message
 
-Current lead information collected so far:
-${Object.entries(requirements).map(([k, v]) => `- ${k}: ${v}`).join('\n') || 'Nothing collected yet'}
+Lead info collected so far:
+${updatedAnsweredKeys.length > 0 ? updatedAnsweredKeys.map(k => `- ${k}: ${requirements[k]}`).join('\n') : 'Nothing yet'}
 
-${nextQuestion ? `Next question to ask (work it in naturally): "${nextQuestion.question}"` : 'All qualifying questions answered. Thank the customer warmly and tell them the team will contact them shortly.'}
-
-${isFirstMessage ? `Start with this greeting: "${config?.greeting_message || 'Hello! How can I help you today?'}"` : 'Do NOT use any greeting. Jump straight into the conversation naturally.'}
+${nextQuestion ? `Next qualifying question to work in naturally: "${nextQuestion.question}"` : 'All questions answered — thank them and say the team will be in touch.'}
         `.trim();
 
         const response = await anthropic.messages.create({
@@ -190,7 +199,7 @@ ${isFirstMessage ? `Start with this greeting: "${config?.greeting_message || 'He
                 {
                     role: 'user',
                     content: isFirstMessage
-                        ? `Customer just started a conversation with: "${userMessage}". Greet them and ask the first qualifying question naturally.`
+                        ? `New customer first message: "${userMessage}". Use this greeting: "${config?.greeting_message || 'Hello! How can I help you?'}" then ask the first qualifying question naturally.`
                         : userMessage
                 }
             ]
@@ -204,7 +213,7 @@ ${isFirstMessage ? `Start with this greeting: "${config?.greeting_message || 'He
         const requirements = lead.requirements || {};
         const answeredKeys = Object.keys(requirements);
         const nextQuestion = questions.find(q => !answeredKeys.includes(q.key));
-        if (!nextQuestion) return `Thank you! I have captured all your details. Our team will contact you shortly.`;
+        if (!nextQuestion) return `Thank you! Our team will contact you shortly.`;
         if (answeredKeys.length === 0) return `${config?.greeting_message || 'Hello!'}\n\n${nextQuestion.question}`;
         return nextQuestion.question;
     }
