@@ -191,20 +191,30 @@ ${updatedAnsweredKeys.length > 0 ? updatedAnsweredKeys.map(k => `- ${k}: ${requi
 ${nextQuestion ? `Next qualifying question to work in naturally: "${nextQuestion.question}"` : 'All questions answered — thank them and say the team will be in touch.'}
         `.trim();
 
+        // Get recent conversation history
+        const recentConvs = await pool.query(
+            `SELECT message, sender FROM conversations WHERE lead_id = $1 ORDER BY created_at DESC LIMIT 10`,
+            [lead.id]
+        );
+        const history = recentConvs.rows.reverse();
+        const messages = isFirstMessage
+            ? [{ role: 'user', content: `New customer first message: "${userMessage}". Use this greeting: "${config?.greeting_message || 'Hello! How can I help you?'}" then ask the first qualifying question naturally.` }]
+            : history.map(h => ({
+                role: h.sender === 'customer' ? 'user' : 'assistant',
+                content: h.message
+            }));
+
+        // Ensure last message is from user
+        if (!isFirstMessage && (messages.length === 0 || messages[messages.length - 1].role !== 'user')) {
+            messages.push({ role: 'user', content: userMessage });
+        }
+
         const response = await anthropic.messages.create({
             model: 'claude-haiku-4-5-20251001',
             max_tokens: 200,
             system: businessContext,
-            messages: [
-                {
-                    role: 'user',
-                    content: isFirstMessage
-                        ? `New customer first message: "${userMessage}". Use this greeting: "${config?.greeting_message || 'Hello! How can I help you?'}" then ask the first qualifying question naturally.`
-                        : userMessage
-                }
-            ]
+            messages: messages.length > 0 ? messages : [{ role: 'user', content: userMessage }]
         });
-
         return response.content[0].text;
 
     } catch (error) {
