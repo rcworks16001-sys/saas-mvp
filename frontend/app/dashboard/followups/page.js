@@ -243,6 +243,20 @@ export default function FollowupsPage() {
                 </button>
             </div>
 
+            {/* Mini Footer */}
+            <div style={{ borderTop: `1px solid ${S.border}`, padding: '16px 32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginTop: 'auto' }}>
+                <span style={{ fontSize: '12px', color: S.textMuted }}>© 2026 Ourivo</span>
+                <div style={{ display: 'flex', gap: '20px' }}>
+                    {[['Help', '/help'], ['Feedback', '/feedback'], ['Contact', '/contact'], ['Privacy', '/privacy'], ['Terms', '/terms']].map(([label, href]) => (
+                        <Link key={href} href={href} style={{ fontSize: '12px', color: S.textMuted, textDecoration: 'none' }}
+                            onMouseEnter={e => e.currentTarget.style.color = S.textSecondary}
+                            onMouseLeave={e => e.currentTarget.style.color = S.textMuted}>
+                            {label}
+                        </Link>
+                    ))}
+                </div>
+            </div>
+
             <style>{`
                 @keyframes spin { to { transform: rotate(360deg); } }
                 textarea::placeholder { color: #5C6A7E; }

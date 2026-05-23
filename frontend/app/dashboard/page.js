@@ -584,6 +584,20 @@ export default function DashboardPage() {
                 )}
             </div>
 
+            {/* Mini Footer */}
+            <div style={{ borderTop: `1px solid ${S.border}`, padding: '16px 32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginTop: '32px' }}>
+                <span style={{ fontSize: '12px', color: S.textMuted }}>© 2026 Ourivo</span>
+                <div style={{ display: 'flex', gap: '20px' }}>
+                    {[['Help', '/help'], ['Feedback', '/feedback'], ['Contact', '/contact'], ['Privacy', '/privacy'], ['Terms', '/terms']].map(([label, href]) => (
+                        <a key={href} href={href} style={{ fontSize: '12px', color: S.textMuted, textDecoration: 'none' }}
+                            onMouseEnter={e => e.currentTarget.style.color = S.textSecondary}
+                            onMouseLeave={e => e.currentTarget.style.color = S.textMuted}>
+                            {label}
+                        </a>
+                    ))}
+                </div>
+            </div>
+
             <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
         select option { background: #161A22; color: #F5F7FA; }

@@ -646,6 +646,20 @@ export default function SettingsPage() {
                 </div>
             </div>
 
+            {/* Mini Footer */}
+            <div style={{ borderTop: `1px solid ${S.border}`, padding: '16px 32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginTop: 'auto' }}>
+                <span style={{ fontSize: '12px', color: S.textMuted }}>© 2026 Ourivo</span>
+                <div style={{ display: 'flex', gap: '20px' }}>
+                    {[['Help', '/help'], ['Feedback', '/feedback'], ['Contact', '/contact'], ['Privacy', '/privacy'], ['Terms', '/terms']].map(([label, href]) => (
+                        <Link key={href} href={href} style={{ fontSize: '12px', color: S.textMuted, textDecoration: 'none' }}
+                            onMouseEnter={e => e.currentTarget.style.color = S.textSecondary}
+                            onMouseLeave={e => e.currentTarget.style.color = S.textMuted}>
+                            {label}
+                        </Link>
+                    ))}
+                </div>
+            </div>
+
             <style>{`
                 @keyframes spin { to { transform: rotate(360deg); } }
                 @keyframes fadeSlideIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
