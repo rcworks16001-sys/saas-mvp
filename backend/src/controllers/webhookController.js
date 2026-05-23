@@ -155,6 +155,9 @@ const getAIResponse = async (userMessage, lead, config, orgInfo) => {
         const updatedAnsweredKeys = Object.keys(requirements);
         const nextQuestion = questions.find(q => !updatedAnsweredKeys.includes(q.key));
 
+        // Define isFirstMessage BEFORE using it in businessContext
+        const isFirstMessage = updatedAnsweredKeys.length === 0 && !lastAskedKey;
+
         // Build context for Claude
         const businessContext = `
 You are a helpful WhatsApp sales assistant for ${orgInfo?.name || 'a real estate business'}.
@@ -174,12 +177,10 @@ Your job is to:
 Current lead information collected so far:
 ${Object.entries(requirements).map(([k, v]) => `- ${k}: ${v}`).join('\n') || 'Nothing collected yet'}
 
-${nextQuestion ? `Next question to ask (work it in naturally): "${nextQuestion.question}"` : 'All qualifying questions answered. Thank the customer and tell them the team will contact them shortly.'}
+${nextQuestion ? `Next question to ask (work it in naturally): "${nextQuestion.question}"` : 'All qualifying questions answered. Thank the customer warmly and tell them the team will contact them shortly.'}
 
-Greeting message to use when first responding: "${config?.greeting_message || 'Hello! How can I help you today?'}"
+${isFirstMessage ? `Start with this greeting: "${config?.greeting_message || 'Hello! How can I help you today?'}"` : 'Do NOT use any greeting. Jump straight into the conversation naturally.'}
         `.trim();
-
-        const isFirstMessage = updatedAnsweredKeys.length === 0 && !lastAskedKey;
 
         const response = await anthropic.messages.create({
             model: 'claude-haiku-4-5-20251001',
@@ -189,7 +190,7 @@ Greeting message to use when first responding: "${config?.greeting_message || 'H
                 {
                     role: 'user',
                     content: isFirstMessage
-                        ? `Customer just started a conversation with: "${userMessage}". Greet them warmly and ask the first qualifying question naturally.`
+                        ? `Customer just started a conversation with: "${userMessage}". Greet them and ask the first qualifying question naturally.`
                         : userMessage
                 }
             ]
@@ -199,7 +200,6 @@ Greeting message to use when first responding: "${config?.greeting_message || 'H
 
     } catch (error) {
         console.error('AI response error:', error);
-        // Fallback to simple flow if Claude fails
         const questions = config?.questions || [];
         const requirements = lead.requirements || {};
         const answeredKeys = Object.keys(requirements);
