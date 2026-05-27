@@ -2,35 +2,45 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
+import Link from 'next/link';
 import Cookies from 'js-cookie';
 import toast from 'react-hot-toast';
 import api from '../../lib/api';
 
-const S = {
-    bg: '#0F1115',
-    surface: '#161A22',
-    surface2: '#1C2130',
-    accent: '#4F8CFF',
-    border: '#2A3142',
-    textPrimary: '#F5F7FA',
-    textSecondary: '#9AA4B2',
-    textMuted: '#5C6A7E',
-};
-
 const SCORE_CONFIG = {
-    hot: { label: '🔥 Hot', color: '#f97316', bg: 'rgba(249,115,22,0.12)' },
-    warm: { label: '⚡ Warm', color: '#f59e0b', bg: 'rgba(245,158,11,0.12)' },
-    cold: { label: '❄️ Cold', color: '#9AA4B2', bg: 'rgba(154,164,178,0.12)' },
+    hot: { label: '🔥 Hot', bg: 'var(--yellow)', color: 'var(--ink)' },
+    warm: { label: '✳ Warm', bg: 'var(--green)', color: 'var(--ink)' },
+    cold: { label: '❄️ Cold', bg: 'var(--mist)', color: 'var(--ash)' },
 };
 
 const STATUS_CONFIG = {
-    new: { label: 'New', color: '#4F8CFF', bg: 'rgba(79,140,255,0.12)' },
-    contacted: { label: 'Contacted', color: '#f59e0b', bg: 'rgba(245,158,11,0.12)' },
-    qualified: { label: 'Qualified', color: '#a78bfa', bg: 'rgba(167,139,250,0.12)' },
-    site_visit: { label: 'Site Visit', color: '#34d399', bg: 'rgba(52,211,153,0.12)' },
-    converted: { label: 'Converted', color: '#34d399', bg: 'rgba(52,211,153,0.12)' },
-    lost: { label: 'Lost', color: '#f87171', bg: 'rgba(248,113,113,0.12)' },
+    new: { label: 'New', color: 'var(--ink)', bg: 'var(--yellow)' },
+    contacted: { label: 'Contacted', color: 'var(--ink)', bg: 'var(--mist)' },
+    qualified: { label: 'Qualified', color: 'var(--ink)', bg: 'var(--green)' },
+    site_visit: { label: 'Site Visit', color: 'var(--ink)', bg: 'var(--green)' },
+    converted: { label: 'Converted', color: '#fff', bg: 'var(--ink)' },
+    lost: { label: 'Lost', color: 'var(--fog)', bg: 'var(--mist)' },
 };
+
+const timeAgo = (date) => {
+    const seconds = Math.floor((new Date() - new Date(date)) / 1000);
+    if (seconds < 60) return 'Just now';
+    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+    return `${Math.floor(seconds / 86400)}d ago`;
+};
+
+// Skeleton row for loading state
+function SkeletonRow() {
+    return (
+        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.4fr 2fr 1.2fr 0.9fr 1.4fr', padding: '16px 20px', borderBottom: '1px solid var(--ice)', alignItems: 'center', gap: 8 }}>
+            {[['70%', 12], ['60%', 10], ['80%', 10], ['50%', 22], ['40%', 10], ['90%', 28]].map(([w, h], i) => (
+                <div key={i} style={{ height: h, width: w, background: 'var(--ice)', borderRadius: 4, animation: 'shimmer 1.6s ease-in-out infinite' }} />
+            ))}
+        </div>
+    );
+}
 
 export default function DashboardPage() {
     const router = useRouter();
@@ -65,18 +75,18 @@ export default function DashboardPage() {
         try {
             const response = await api.get('/billing/status');
             setBillingStatus(response.data);
-        } catch (error) {
-            // Silently fail — billing banner is non-critical
-        }
+        } catch { }
     };
 
     const updateStatus = async (leadId, newStatus) => {
+        // Optimistic update
+        setLeads(prev => prev.map(l => l.id === leadId ? { ...l, status: newStatus } : l));
         try {
             await api.patch(`/leads/${leadId}/status`, { status: newStatus });
-            setLeads(leads.map(l => l.id === leadId ? { ...l, status: newStatus } : l));
             toast.success('Status updated');
         } catch (error) {
             toast.error('Failed to update status');
+            fetchLeads(); // revert on error
         }
     };
 
@@ -96,513 +106,373 @@ export default function DashboardPage() {
         return matchesFilter && matchesSearch;
     });
 
-    const stats = [
-        { label: 'Total Leads', value: leads.length, color: S.accent, icon: '👥' },
-        { label: 'New Today', value: leads.filter(l => l.status === 'new').length, color: '#a78bfa', icon: '✨' },
-        { label: 'Qualified', value: leads.filter(l => l.status === 'qualified').length, color: '#34d399', icon: '⚡' },
-        { label: 'Converted', value: leads.filter(l => l.status === 'converted').length, color: '#fbbf24', icon: '🏆' },
-    ];
-
-    const timeAgo = (date) => {
-        const seconds = Math.floor((new Date() - new Date(date)) / 1000);
-        if (seconds < 60) return 'Just now';
-        if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
-        if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
-        return `${Math.floor(seconds / 86400)}d ago`;
-    };
-
-    const trialDaysLeft = billingStatus?.trialDaysRemaining;
+    const hotCount = leads.filter(l => l.score_label === 'hot').length;
     const isActive = billingStatus?.status === 'active';
+    const trialDaysLeft = billingStatus?.trialDaysRemaining;
     const showTrialBanner = billingStatus?.isTrialActive && trialDaysLeft <= 7;
     const showExpiredBanner = !billingStatus?.isTrialActive && !isActive && billingStatus !== null;
 
+    const stats = [
+        { label: 'Total leads', value: leads.length, icon: '👥', accent: 'var(--ink)' },
+        { label: 'Hot leads', value: leads.filter(l => l.score_label === 'hot').length, icon: '🔥', accent: 'var(--ink)' },
+        { label: 'Warm leads', value: leads.filter(l => l.score_label === 'warm').length, icon: '✳', accent: 'var(--ink)' },
+        { label: 'Converted', value: leads.filter(l => l.status === 'converted').length, icon: '✓', accent: 'var(--ink)' },
+    ];
+
+    const navItems = [
+        { label: 'Dashboard', href: '/dashboard', icon: '⊞', active: true },
+        { label: 'Leads', href: '/dashboard/leads', icon: '👥', badge: hotCount > 0 ? hotCount : null, badgeRed: true },
+        { label: 'Inventory', href: '/dashboard/inventory', icon: '🏢' },
+        { label: 'Follow-ups', href: '/dashboard/followups', icon: '🔄' },
+    ];
+
+    const configItems = [
+        { label: 'Chatbot', href: '/dashboard/settings?tab=chatbot', icon: '🤖' },
+        { label: 'Notifications', href: '/dashboard/settings?tab=notifications', icon: '🔔' },
+        { label: 'Billing', href: '/billing', icon: '💳' },
+        { label: 'Account', href: '/dashboard/settings?tab=account', icon: '👤' },
+    ];
+
     return (
-        <div style={{
-            minHeight: '100vh',
-            background: S.bg,
-            fontFamily: 'var(--font-family)',
-            color: S.textPrimary
-        }}>
+        <div style={{ minHeight: '100vh', background: 'var(--ice)', fontFamily: 'var(--font-inter)' }}>
 
-            {/* Navbar */}
+            {/* ── Navbar ── */}
             <nav style={{
-                display: 'flex', alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '0 32px', height: '58px',
-                background: S.surface,
-                borderBottom: `1px solid ${S.border}`,
                 position: 'sticky', top: 0, zIndex: 100,
-                backdropFilter: 'blur(12px)'
+                height: 62, display: 'flex', alignItems: 'center',
+                justifyContent: 'space-between', padding: '0 32px',
+                background: '#fff', borderBottom: '1px solid #e8ecf4',
             }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <img src="/logo.png" alt="Ourivo" style={{ width: '36px', height: '36px', objectFit: 'contain' }} />
-                    <span style={{ fontWeight: 800, fontSize: '16px', fontFamily: 'Georgia, serif' }}>
-                        <span style={{ color: S.textPrimary }}>Our</span><span style={{ color: S.accent }}>ivo</span>
-                    </span>
-                    <span style={{
-                        marginLeft: '8px', padding: '2px 8px',
-                        background: 'rgba(79,140,255,0.1)',
-                        border: `1px solid rgba(79,140,255,0.2)`,
-                        borderRadius: '999px',
-                        fontSize: '10px', fontWeight: 600,
-                        color: S.accent, letterSpacing: '0.05em'
-                    }}>BETA</span>
-                </div>
+                <Link href="/dashboard" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
+                    <Image src="/logo.png" alt="Ourivo" width={34} height={34} style={{ borderRadius: 8 }} />
+                    <span style={{ fontFamily: 'var(--font-display)', fontSize: 22, color: 'var(--ink)', letterSpacing: 1.5 }}>OURIVO</span>
+                </Link>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                    <div style={{
-                        display: 'flex', alignItems: 'center', gap: '7px',
-                        padding: '5px 12px',
-                        background: S.surface2,
-                        border: `1px solid ${S.border}`,
-                        borderRadius: '8px'
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    {/* Billing status pill */}
+                    <Link href="/billing" style={{
+                        padding: '6px 14px', borderRadius: 'var(--r-btn)',
+                        background: isActive ? '#f0fdf4' : billingStatus?.isTrialActive ? '#fffbeb' : '#fef2f2',
+                        border: `1px solid ${isActive ? '#bbf7d0' : billingStatus?.isTrialActive ? '#fde68a' : '#fecaca'}`,
+                        color: isActive ? '#15803d' : billingStatus?.isTrialActive ? '#92400e' : '#b91c1c',
+                        fontSize: 12, fontWeight: 700, textDecoration: 'none',
                     }}>
-                        <div style={{
-                            width: '22px', height: '22px', borderRadius: '50%',
-                            background: `linear-gradient(135deg, ${S.accent}, #818cf8)`,
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            fontSize: '10px', fontWeight: 700, color: 'white'
-                        }}>
+                        {isActive ? '✓ Pro' : billingStatus?.isTrialActive ? `⏳ ${trialDaysLeft}d left` : '⚠️ Expired'}
+                    </Link>
+
+                    {/* Avatar */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 12px 5px 5px', borderRadius: 'var(--r-nav)', border: '1px solid var(--ice)', background: 'var(--mist)', cursor: 'pointer' }}
+                        onClick={handleLogout}
+                        title="Sign out">
+                        <div style={{ width: 28, height: 28, borderRadius: 8, background: 'var(--ink)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, color: '#fff' }}>
                             {userName.charAt(0).toUpperCase()}
                         </div>
-                        <span style={{ color: S.textSecondary, fontSize: '13px', fontWeight: 500 }}>
-                            {userName.split(' ')[0]}
-                        </span>
+                        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--ash)' }}>{userName.split(' ')[0]}</span>
                     </div>
-
-                    <a href="/billing" style={{
-                        padding: '6px 14px',
-                        background: isActive ? 'rgba(52,211,153,0.08)' : billingStatus?.isTrialActive ? 'rgba(245,158,11,0.08)' : 'rgba(248,113,113,0.08)',
-                        border: `1px solid ${isActive ? 'rgba(52,211,153,0.25)' : billingStatus?.isTrialActive ? 'rgba(245,158,11,0.25)' : 'rgba(248,113,113,0.25)'}`,
-                        borderRadius: '8px',
-                        color: isActive ? '#34d399' : billingStatus?.isTrialActive ? '#f59e0b' : '#f87171',
-                        fontSize: '12px', fontWeight: 600,
-                        textDecoration: 'none',
-                        transition: 'all 180ms ease'
-                    }}
-                        onMouseEnter={e => e.currentTarget.style.opacity = '0.8'}
-                        onMouseLeave={e => e.currentTarget.style.opacity = '1'}
-                    >
-                        {isActive
-                            ? '✓ Pro'
-                            : billingStatus?.isTrialActive
-                                ? `⏳ Trial - ${billingStatus.trialDaysRemaining}d left`
-                                : '⚠️ Trial Expired'}
-                    </a>
-
-                    <a href="/dashboard/followups" style={{
-                        padding: '6px 14px',
-                        background: 'transparent',
-                        border: `1px solid ${S.border}`,
-                        borderRadius: '8px',
-                        color: S.textSecondary, fontSize: '12px',
-                        fontWeight: 500, textDecoration: 'none',
-                        transition: 'all 180ms ease'
-                    }}
-                        onMouseEnter={e => {
-                            e.currentTarget.style.borderColor = S.accent;
-                            e.currentTarget.style.color = S.accent;
-                        }}
-                        onMouseLeave={e => {
-                            e.currentTarget.style.borderColor = S.border;
-                            e.currentTarget.style.color = S.textSecondary;
-                        }}
-                    >
-                        🔄 Follow-ups
-                    </a>
-
-                    <a href="/dashboard/settings" style={{
-                        padding: '6px 14px',
-                        background: 'transparent',
-                        border: `1px solid ${S.border}`,
-                        borderRadius: '8px',
-                        color: S.textSecondary, fontSize: '12px',
-                        fontWeight: 500, textDecoration: 'none',
-                        transition: 'all 180ms ease'
-                    }}
-                        onMouseEnter={e => {
-                            e.currentTarget.style.borderColor = S.accent;
-                            e.currentTarget.style.color = S.accent;
-                        }}
-                        onMouseLeave={e => {
-                            e.currentTarget.style.borderColor = S.border;
-                            e.currentTarget.style.color = S.textSecondary;
-                        }}
-                    >
-                        ⚙️ Settings
-                    </a>
-
-                    <button
-                        onClick={handleLogout}
-                        style={{
-                            padding: '6px 14px',
-                            background: 'transparent',
-                            border: `1px solid ${S.border}`,
-                            borderRadius: '8px',
-                            color: S.textMuted,
-                            fontSize: '12px', fontWeight: 500,
-                            cursor: 'pointer',
-                            fontFamily: 'var(--font-family)',
-                            transition: 'all 180ms ease'
-                        }}
-                        onMouseEnter={e => {
-                            e.currentTarget.style.borderColor = 'rgba(248,113,113,0.4)';
-                            e.currentTarget.style.color = '#f87171';
-                            e.currentTarget.style.background = 'rgba(248,113,113,0.06)';
-                        }}
-                        onMouseLeave={e => {
-                            e.currentTarget.style.borderColor = S.border;
-                            e.currentTarget.style.color = S.textMuted;
-                            e.currentTarget.style.background = 'transparent';
-                        }}
-                    >
-                        Sign out
-                    </button>
                 </div>
             </nav>
 
-            {/* Trial warning banner */}
+            {/* ── Trial banners ── */}
             {showTrialBanner && (
-                <div style={{
-                    background: 'rgba(245,158,11,0.08)',
-                    borderBottom: '1px solid rgba(245,158,11,0.2)',
-                    padding: '10px 32px',
-                    display: 'flex', alignItems: 'center',
-                    justifyContent: 'space-between'
-                }}>
-                    <span style={{ fontSize: '13px', color: '#f59e0b' }}>
-                        ⏳ Your free trial ends in <strong>{trialDaysLeft} days</strong>. Subscribe to keep access.
+                <div style={{ background: 'var(--yellow)', padding: '10px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: 13, color: 'var(--ink)', fontWeight: 500 }}>
+                        ⏳ Trial ends in <strong>{trialDaysLeft} days</strong>. Subscribe to keep access.
                     </span>
-                    <a href="/billing" style={{
-                        fontSize: '12px', fontWeight: 600,
-                        color: '#f59e0b', textDecoration: 'none',
-                        padding: '4px 12px',
-                        border: '1px solid rgba(245,158,11,0.4)',
-                        borderRadius: '6px'
-                    }}>
-                        Subscribe Now →
-                    </a>
+                    <Link href="/billing" style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink)', textDecoration: 'none', padding: '4px 14px', border: '1.5px solid var(--ink)', borderRadius: 'var(--r-btn)' }}>
+                        Subscribe →
+                    </Link>
                 </div>
             )}
-
-            {/* Trial expired banner */}
             {showExpiredBanner && (
-                <div style={{
-                    background: 'rgba(248,113,113,0.08)',
-                    borderBottom: '1px solid rgba(248,113,113,0.2)',
-                    padding: '10px 32px',
-                    display: 'flex', alignItems: 'center',
-                    justifyContent: 'space-between'
-                }}>
-                    <span style={{ fontSize: '13px', color: '#f87171' }}>
-                        ⚠️ Your trial has expired. Subscribe to restore full access.
+                <div style={{ background: '#fef2f2', borderBottom: '1px solid #fecaca', padding: '10px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: 13, color: '#b91c1c', fontWeight: 500 }}>
+                        ⚠️ Trial expired. Subscribe to restore full access.
                     </span>
-                    <a href="/billing" style={{
-                        fontSize: '12px', fontWeight: 600,
-                        color: '#f87171', textDecoration: 'none',
-                        padding: '4px 12px',
-                        border: '1px solid rgba(248,113,113,0.4)',
-                        borderRadius: '6px'
-                    }}>
-                        Subscribe Now →
-                    </a>
+                    <Link href="/billing" style={{ fontSize: 12, fontWeight: 700, color: '#b91c1c', textDecoration: 'none', padding: '4px 14px', border: '1.5px solid #fecaca', borderRadius: 'var(--r-btn)' }}>
+                        Subscribe →
+                    </Link>
                 </div>
             )}
 
-            {/* Page content */}
-            <div style={{ padding: '28px 32px', maxWidth: '1240px', margin: '0 auto' }}>
+            {/* ── Body: sidebar + content ── */}
+            <div style={{ display: 'flex', maxWidth: 1360, margin: '0 auto', minHeight: 'calc(100vh - 62px)' }}>
 
-                {/* Page header */}
-                <div style={{ marginBottom: '24px' }}>
-                    <h1 style={{
-                        fontSize: '20px', fontWeight: 700,
-                        color: S.textPrimary, letterSpacing: '-0.02em',
-                        marginBottom: '3px'
-                    }}>
-                        Lead Dashboard
-                    </h1>
-                    <p style={{ color: S.textMuted, fontSize: '13px' }}>
-                        All leads captured by your WhatsApp chatbot
-                    </p>
-                </div>
-
-                {/* Stats grid */}
-                <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(4, 1fr)',
-                    gap: '12px', marginBottom: '24px'
+                {/* Sidebar */}
+                <aside style={{
+                    width: 220, flexShrink: 0,
+                    background: '#fff', borderRight: '1px solid #e8ecf4',
+                    padding: '20px 14px',
+                    position: 'sticky', top: 62,
+                    height: 'calc(100vh - 62px)',
+                    display: 'flex', flexDirection: 'column',
+                    overflowY: 'auto',
                 }}>
-                    {stats.map((stat, i) => (
-                        <div key={i} style={{
-                            padding: '18px 20px',
-                            background: S.surface,
-                            border: `1px solid ${S.border}`,
-                            borderRadius: '13px',
-                            transition: 'all 200ms ease',
-                            cursor: 'default'
+                    <div style={{ fontSize: 9, fontWeight: 800, color: 'var(--fog)', textTransform: 'uppercase', letterSpacing: '0.14em', padding: '0 12px 6px' }}>Navigate</div>
+                    {navItems.map(item => (
+                        <Link key={item.href} href={item.href} style={{
+                            display: 'flex', alignItems: 'center', gap: 10,
+                            padding: '10px 12px', borderRadius: 'var(--r-nav)',
+                            textDecoration: 'none', marginBottom: 1,
+                            background: item.active ? 'var(--ink)' : 'transparent',
+                            color: item.active ? '#fff' : 'var(--ash)',
+                            fontSize: 13, fontWeight: item.active ? 700 : 500,
+                            transition: 'all 0.15s',
+                            position: 'relative',
                         }}
-                            onMouseEnter={e => {
-                                e.currentTarget.style.borderColor = 'rgba(79,140,255,0.25)';
-                                e.currentTarget.style.transform = 'translateY(-2px)';
-                                e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.2)';
-                            }}
-                            onMouseLeave={e => {
-                                e.currentTarget.style.borderColor = S.border;
-                                e.currentTarget.style.transform = 'translateY(0)';
-                                e.currentTarget.style.boxShadow = 'none';
-                            }}
+                            onMouseEnter={e => { if (!item.active) { e.currentTarget.style.background = 'var(--mist)'; e.currentTarget.style.color = 'var(--ink)'; } }}
+                            onMouseLeave={e => { if (!item.active) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--ash)'; } }}
                         >
-                            <div style={{
-                                display: 'flex', alignItems: 'center',
-                                justifyContent: 'space-between', marginBottom: '10px'
-                            }}>
-                                <span style={{ fontSize: '18px' }}>{stat.icon}</span>
-                                <span style={{
-                                    fontSize: '11px', fontWeight: 600,
-                                    color: S.textMuted, letterSpacing: '0.05em',
-                                    textTransform: 'uppercase'
-                                }}>
-                                    {stat.label}
+                            <span>{item.icon}</span>
+                            <span>{item.label}</span>
+                            {item.badge && (
+                                <span style={{ marginLeft: 'auto', background: item.badgeRed ? '#ef4444' : 'var(--ink)', color: '#fff', fontSize: 9, fontWeight: 800, padding: '2px 7px', borderRadius: 20 }}>
+                                    {item.badge}
                                 </span>
-                            </div>
-                            <div style={{
-                                fontSize: '30px', fontWeight: 700,
-                                color: stat.color, letterSpacing: '-0.03em'
-                            }}>
-                                {loading ? '—' : stat.value}
-                            </div>
-                        </div>
+                            )}
+                        </Link>
                     ))}
-                </div>
 
-                {/* Toolbar */}
-                <div style={{
-                    display: 'flex', alignItems: 'center',
-                    justifyContent: 'space-between',
-                    marginBottom: '14px', gap: '12px', flexWrap: 'wrap'
-                }}>
-                    <div style={{
-                        display: 'flex', gap: '4px',
-                        background: S.surface,
-                        border: `1px solid ${S.border}`,
-                        borderRadius: '10px', padding: '3px'
-                    }}>
-                        {['all', 'new', 'contacted', 'qualified', 'site_visit', 'converted', 'lost'].map(f => (
-                            <button key={f} onClick={() => setFilter(f)} style={{
-                                padding: '5px 12px', borderRadius: '7px',
-                                border: 'none', fontSize: '12px', fontWeight: 600,
-                                cursor: 'pointer', fontFamily: 'var(--font-family)',
-                                transition: 'all 180ms ease',
-                                background: filter === f ? S.accent : 'transparent',
-                                color: filter === f ? 'white' : S.textMuted,
-                                textTransform: 'capitalize',
-                                letterSpacing: '0.01em'
-                            }}>
-                                {f === 'all' ? 'All' : STATUS_CONFIG[f]?.label || f}
-                            </button>
-                        ))}
-                    </div>
-
-                    <input
-                        type="text"
-                        placeholder="Search by name, phone..."
-                        value={search}
-                        onChange={e => setSearch(e.target.value)}
-                        style={{
-                            padding: '8px 14px',
-                            background: S.surface,
-                            border: `1px solid ${S.border}`,
-                            borderRadius: '9px',
-                            color: S.textPrimary, fontSize: '13px',
-                            fontFamily: 'var(--font-family)', outline: 'none',
-                            width: '220px', transition: 'all 180ms ease'
+                    <div style={{ height: 1, background: 'var(--ice)', margin: '12px 0' }} />
+                    <div style={{ fontSize: 9, fontWeight: 800, color: 'var(--fog)', textTransform: 'uppercase', letterSpacing: '0.14em', padding: '0 12px 6px' }}>Configure</div>
+                    {configItems.map(item => (
+                        <Link key={item.href} href={item.href} style={{
+                            display: 'flex', alignItems: 'center', gap: 10,
+                            padding: '10px 12px', borderRadius: 'var(--r-nav)',
+                            textDecoration: 'none', marginBottom: 1,
+                            color: 'var(--ash)', fontSize: 13, fontWeight: 500,
+                            transition: 'all 0.15s',
                         }}
-                        onFocus={e => {
-                            e.target.style.borderColor = S.accent;
-                            e.target.style.boxShadow = `0 0 0 3px rgba(79,140,255,0.1)`;
-                        }}
-                        onBlur={e => {
-                            e.target.style.borderColor = S.border;
-                            e.target.style.boxShadow = 'none';
-                        }}
-                    />
-                </div>
-
-                {/* Table */}
-                <div style={{
-                    background: S.surface,
-                    border: `1px solid ${S.border}`,
-                    borderRadius: '14px', overflow: 'hidden'
-                }}>
-                    <div style={{
-                        display: 'grid',
-                        gridTemplateColumns: '2fr 1.4fr 2fr 1.2fr 0.9fr 1.4fr',
-                        padding: '11px 20px',
-                        borderBottom: `1px solid ${S.border}`,
-                        background: S.surface2
-                    }}>
-                        {['Name', 'Phone', 'Message', 'Status', 'Time', 'Update'].map((h, i) => (
-                            <div key={i} style={{
-                                fontSize: '10px', fontWeight: 700,
-                                color: S.textMuted,
-                                letterSpacing: '0.08em', textTransform: 'uppercase'
-                            }}>{h}</div>
-                        ))}
-                    </div>
-
-                    {loading && (
-                        <div style={{ padding: '56px 20px', textAlign: 'center' }}>
-                            <div style={{
-                                width: '22px', height: '22px',
-                                border: `2px solid ${S.border}`,
-                                borderTopColor: S.accent,
-                                borderRadius: '50%',
-                                animation: 'spin 0.7s linear infinite',
-                                margin: '0 auto 12px'
-                            }} />
-                            <p style={{ color: S.textMuted, fontSize: '13px' }}>Loading leads...</p>
-                        </div>
-                    )}
-
-                    {!loading && filteredLeads.length === 0 && (
-                        <div style={{ padding: '56px 20px', textAlign: 'center' }}>
-                            <div style={{ fontSize: '32px', marginBottom: '12px' }}>📭</div>
-                            <p style={{ color: S.textSecondary, fontSize: '14px', fontWeight: 500 }}>
-                                No leads found
-                            </p>
-                            <p style={{ color: S.textMuted, fontSize: '12px', marginTop: '4px' }}>
-                                {filter !== 'all' ? 'Try a different filter' : 'Leads appear here once captured'}
-                            </p>
-                        </div>
-                    )}
-
-                    {!loading && filteredLeads.map((lead, i) => (
-                        <div key={lead.id} style={{
-                            display: 'grid',
-                            gridTemplateColumns: '2fr 1.4fr 2fr 1.2fr 0.9fr 1.4fr',
-                            padding: '14px 20px',
-                            borderBottom: i < filteredLeads.length - 1
-                                ? `1px solid ${S.border}` : 'none',
-                            transition: 'background 180ms ease',
-                            alignItems: 'center'
-                        }}
-                            onMouseEnter={e => e.currentTarget.style.background = S.surface2}
-                            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                            onMouseEnter={e => { e.currentTarget.style.background = 'var(--mist)'; e.currentTarget.style.color = 'var(--ink)'; }}
+                            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--ash)'; }}
                         >
-                            <div
-                                onClick={() => router.push(`/dashboard/leads/${lead.id}`)}
-                                style={{
-                                    fontSize: '13px', fontWeight: 600,
-                                    color: S.textPrimary, marginBottom: '2px',
-                                    cursor: 'pointer', transition: 'color 180ms ease'
-                                }}
-                                onMouseEnter={e => e.currentTarget.style.color = S.accent}
-                                onMouseLeave={e => e.currentTarget.style.color = S.textPrimary}
+                            <span>{item.icon}</span>
+                            <span>{item.label}</span>
+                        </Link>
+                    ))}
+
+                    <div style={{ flex: 1 }} />
+
+                    {/* Trial box */}
+                    <div style={{ background: 'var(--ink)', borderRadius: 16, padding: 16, marginTop: 12 }}>
+                        <div style={{ fontFamily: 'var(--font-display)', fontSize: 16, color: '#fff', letterSpacing: 0.5, marginBottom: 4 }}>
+                            {isActive ? 'PRO PLAN' : 'FREE TRIAL'}
+                        </div>
+                        <div style={{ fontSize: 11, color: 'var(--fog)', marginBottom: 12, lineHeight: 1.4 }}>
+                            {isActive ? 'All features active' : `${trialDaysLeft ?? '—'} days remaining`}
+                        </div>
+                        {!isActive && (
+                            <>
+                                <div style={{ height: 3, background: '#222', borderRadius: 20, marginBottom: 12, overflow: 'hidden' }}>
+                                    <div style={{ height: 3, width: `${Math.max(0, 100 - ((trialDaysLeft / 14) * 100))}%`, background: 'var(--green)', borderRadius: 20 }} />
+                                </div>
+                                <Link href="/billing" style={{ display: 'block', textAlign: 'center', background: 'var(--green)', color: 'var(--ink)', textDecoration: 'none', padding: '9px', borderRadius: 8, fontSize: 12, fontWeight: 700 }}>
+                                    Upgrade — ₹1,999/mo
+                                </Link>
+                            </>
+                        )}
+                    </div>
+                </aside>
+
+                {/* Main content */}
+                <main style={{ flex: 1, padding: '28px 32px', minWidth: 0 }}>
+
+                    {/* Page header */}
+                    <div style={{ marginBottom: 24 }}>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--fog)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 8 }}>
+                            Good morning, {userName.split(' ')[0]}
+                        </div>
+                        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 42, color: 'var(--ink)', letterSpacing: -1, lineHeight: 0.92, marginBottom: 6 }}>
+                            LEAD PIPELINE.
+                        </h1>
+                        <p style={{ fontSize: 13, color: 'var(--ash)' }}>
+                            All leads captured by your WhatsApp AI bot
+                        </p>
+                    </div>
+
+                    {/* Stats */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14, marginBottom: 28 }}>
+                        {stats.map((stat, i) => (
+                            <div key={i} style={{
+                                background: i === 1 ? 'var(--ink)' : '#fff',
+                                border: `1px solid ${i === 1 ? 'transparent' : '#e8ecf4'}`,
+                                borderRadius: 'var(--r-card)',
+                                padding: '20px 22px',
+                                cursor: 'default',
+                                transition: 'all 0.22s',
+                            }}
+                                onMouseEnter={e => { if (i !== 1) { e.currentTarget.style.borderColor = 'var(--ink)'; e.currentTarget.style.transform = 'translateY(-2px)'; } }}
+                                onMouseLeave={e => { if (i !== 1) { e.currentTarget.style.borderColor = '#e8ecf4'; e.currentTarget.style.transform = 'none'; } }}
                             >
-                                {lead.name || 'Unknown'}
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+                                    <span style={{ fontSize: 20 }}>{stat.icon}</span>
+                                    {i === 1 && <span style={{ fontSize: 10, fontWeight: 800, padding: '3px 9px', borderRadius: 20, background: 'var(--yellow)', color: 'var(--ink)' }}>CALL NOW</span>}
+                                </div>
+                                <div style={{ fontFamily: 'var(--font-display)', fontSize: 44, color: i === 1 ? '#fff' : 'var(--ink)', letterSpacing: -2, lineHeight: 0.9, marginBottom: 6 }}>
+                                    {loading ? '—' : stat.value}
+                                </div>
+                                <div style={{ fontSize: 11, fontWeight: 600, color: i === 1 ? 'var(--fog)' : 'var(--fog)', letterSpacing: '0.03em' }}>
+                                    {stat.label}
+                                </div>
                             </div>
+                        ))}
+                    </div>
 
-                            <div style={{
-                                fontSize: '12px', color: S.textSecondary,
-                                fontFamily: 'monospace', letterSpacing: '0.02em'
-                            }}>
-                                {lead.phone}
-                            </div>
-
-                            <div style={{
-                                fontSize: '12px', color: S.textMuted,
-                                overflow: 'hidden', textOverflow: 'ellipsis',
-                                whiteSpace: 'nowrap', paddingRight: '12px'
-                            }}>
-                                {lead.message || '—'}
-                            </div>
-
-                            {/* Status + Score */}
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                <span style={{
-                                    display: 'inline-flex', alignItems: 'center',
-                                    padding: '3px 9px', borderRadius: '999px',
-                                    fontSize: '11px', fontWeight: 600,
-                                    color: STATUS_CONFIG[lead.status]?.color || S.textMuted,
-                                    background: STATUS_CONFIG[lead.status]?.bg || 'rgba(148,163,184,0.1)',
-                                    letterSpacing: '0.02em'
+                    {/* Toolbar */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, gap: 12, flexWrap: 'wrap' }}>
+                        <div style={{ display: 'flex', gap: 3, background: '#fff', border: '1px solid #e8ecf4', borderRadius: 12, padding: 4 }}>
+                            {['all', 'new', 'contacted', 'qualified', 'site_visit', 'converted', 'lost'].map(f => (
+                                <button key={f} onClick={() => setFilter(f)} style={{
+                                    padding: '6px 13px', borderRadius: 9, border: 'none',
+                                    fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                                    fontFamily: 'var(--font-inter)',
+                                    background: filter === f ? 'var(--ink)' : 'transparent',
+                                    color: filter === f ? '#fff' : 'var(--ash)',
+                                    transition: 'all 0.15s',
+                                    textTransform: 'capitalize',
                                 }}>
+                                    {f === 'all' ? 'All' : STATUS_CONFIG[f]?.label || f}
+                                </button>
+                            ))}
+                        </div>
+
+                        <input
+                            type="text"
+                            placeholder="Search by name, phone..."
+                            value={search}
+                            onChange={e => setSearch(e.target.value)}
+                            style={{
+                                padding: '9px 14px', background: '#fff',
+                                border: '1px solid #e8ecf4', borderRadius: 'var(--r-btn)',
+                                color: 'var(--ink)', fontSize: 13,
+                                fontFamily: 'var(--font-inter)', outline: 'none',
+                                width: 220, transition: 'all 0.18s',
+                            }}
+                            onFocus={e => { e.target.style.borderColor = 'var(--ink)'; }}
+                            onBlur={e => { e.target.style.borderColor = '#e8ecf4'; }}
+                        />
+                    </div>
+
+                    {/* Table */}
+                    <div style={{ background: '#fff', border: '1px solid #e8ecf4', borderRadius: 'var(--r-card)', overflow: 'hidden' }}>
+                        {/* Table header */}
+                        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.4fr 2fr 1.2fr 0.9fr 1.4fr', padding: '12px 20px', background: 'var(--mist)', borderBottom: '1px solid var(--ice)' }}>
+                            {['Lead', 'Phone', 'Message', 'Status', 'Time', 'Update'].map(h => (
+                                <div key={h} style={{ fontSize: 10, fontWeight: 800, color: 'var(--fog)', textTransform: 'uppercase', letterSpacing: '0.09em' }}>{h}</div>
+                            ))}
+                        </div>
+
+                        {/* Skeleton loading */}
+                        {loading && [1, 2, 3, 4].map(i => <SkeletonRow key={i} />)}
+
+                        {/* Empty state */}
+                        {!loading && filteredLeads.length === 0 && (
+                            <div style={{ padding: '64px 20px', textAlign: 'center' }}>
+                                <div style={{ fontSize: 40, marginBottom: 14 }}>📭</div>
+                                <div style={{ fontFamily: 'var(--font-display)', fontSize: 22, color: 'var(--ink)', letterSpacing: 0.5, marginBottom: 8 }}>NO LEADS YET</div>
+                                <p style={{ fontSize: 13, color: 'var(--fog)' }}>
+                                    {filter !== 'all' ? 'Try a different filter' : 'Leads appear here once your bot captures them'}
+                                </p>
+                            </div>
+                        )}
+
+                        {/* Lead rows */}
+                        {!loading && filteredLeads.map((lead, i) => (
+                            <div key={lead.id} style={{
+                                display: 'grid',
+                                gridTemplateColumns: '2fr 1.4fr 2fr 1.2fr 0.9fr 1.4fr',
+                                padding: '15px 20px',
+                                borderBottom: i < filteredLeads.length - 1 ? '1px solid var(--ice)' : 'none',
+                                alignItems: 'center',
+                                transition: 'background 0.12s', cursor: 'default',
+                            }}
+                                onMouseEnter={e => e.currentTarget.style.background = 'var(--mist)'}
+                                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                            >
+                                {/* Name */}
+                                <div>
+                                    <div
+                                        onClick={() => router.push(`/dashboard/leads/${lead.id}`)}
+                                        style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', cursor: 'pointer', display: 'inline-block', borderBottom: '1px solid transparent', transition: 'border-color 0.15s' }}
+                                        onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--ink)'}
+                                        onMouseLeave={e => e.currentTarget.style.borderColor = 'transparent'}
+                                    >
+                                        {lead.name || 'Unknown'}
+                                    </div>
+                                    {lead.score_label && (
+                                        <span style={{ display: 'inline-flex', marginLeft: 8, alignItems: 'center', padding: '2px 8px', borderRadius: 20, fontSize: 10, fontWeight: 800, background: SCORE_CONFIG[lead.score_label]?.bg, color: SCORE_CONFIG[lead.score_label]?.color }}>
+                                            {SCORE_CONFIG[lead.score_label]?.label}
+                                        </span>
+                                    )}
+                                </div>
+
+                                {/* Phone */}
+                                <div style={{ fontSize: 12, color: 'var(--ash)', fontFamily: 'monospace' }}>{lead.phone}</div>
+
+                                {/* Message */}
+                                <div style={{ fontSize: 12, color: 'var(--fog)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: 12 }}>
+                                    {lead.message || '—'}
+                                </div>
+
+                                {/* Status */}
+                                <span style={{ display: 'inline-flex', alignItems: 'center', padding: '4px 11px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: STATUS_CONFIG[lead.status]?.bg, color: STATUS_CONFIG[lead.status]?.color }}>
                                     {STATUS_CONFIG[lead.status]?.label || lead.status}
                                 </span>
-                                {lead.score > 0 && (
-                                    <span style={{
-                                        display: 'inline-flex', alignItems: 'center',
-                                        padding: '2px 8px', borderRadius: '999px',
-                                        fontSize: '10px', fontWeight: 700,
-                                        color: SCORE_CONFIG[lead.score_label]?.color || S.textMuted,
-                                        background: SCORE_CONFIG[lead.score_label]?.bg || 'rgba(148,163,184,0.1)',
-                                    }}>
-                                        {SCORE_CONFIG[lead.score_label]?.label} · {lead.score}
-                                    </span>
-                                )}
+
+                                {/* Time */}
+                                <div style={{ fontSize: 11, color: 'var(--fog)', fontWeight: 500 }}>{timeAgo(lead.created_at)}</div>
+
+                                {/* Update status */}
+                                <select
+                                    value={lead.status}
+                                    onChange={e => updateStatus(lead.id, e.target.value)}
+                                    style={{
+                                        padding: '6px 9px', background: 'var(--mist)',
+                                        border: '1px solid var(--ice)', borderRadius: 'var(--r-btn)',
+                                        color: 'var(--ash)', fontSize: 12,
+                                        fontFamily: 'var(--font-inter)',
+                                        cursor: 'pointer', outline: 'none', width: '100%',
+                                        transition: 'border-color 0.15s',
+                                    }}
+                                    onFocus={e => e.target.style.borderColor = 'var(--ink)'}
+                                    onBlur={e => e.target.style.borderColor = 'var(--ice)'}
+                                >
+                                    {Object.entries(STATUS_CONFIG).map(([value, config]) => (
+                                        <option key={value} value={value}>{config.label}</option>
+                                    ))}
+                                </select>
                             </div>
-
-                            <div style={{ fontSize: '11px', color: S.textMuted }}>
-                                {timeAgo(lead.created_at)}
-                            </div>
-
-                            <select
-                                value={lead.status}
-                                onChange={e => updateStatus(lead.id, e.target.value)}
-                                style={{
-                                    padding: '5px 9px',
-                                    background: S.surface2,
-                                    border: `1px solid ${S.border}`,
-                                    borderRadius: '7px',
-                                    color: S.textSecondary,
-                                    fontSize: '12px',
-                                    fontFamily: 'var(--font-family)',
-                                    cursor: 'pointer', outline: 'none',
-                                    width: '100%', transition: 'all 180ms ease'
-                                }}
-                                onFocus={e => e.target.style.borderColor = S.accent}
-                                onBlur={e => e.target.style.borderColor = S.border}
-                            >
-                                {Object.entries(STATUS_CONFIG).map(([value, config]) => (
-                                    <option key={value} value={value}
-                                        style={{ background: S.surface2, color: S.textPrimary }}>
-                                        {config.label}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                    ))}
-                </div>
-
-                {!loading && (
-                    <div style={{
-                        marginTop: '12px', fontSize: '12px',
-                        color: S.textMuted, textAlign: 'right'
-                    }}>
-                        {filteredLeads.length} of {leads.length} leads
+                        ))}
                     </div>
-                )}
-            </div>
 
-            {/* Mini Footer */}
-            <div style={{ borderTop: `1px solid ${S.border}`, padding: '16px 32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginTop: '32px' }}>
-                <span style={{ fontSize: '12px', color: S.textMuted }}>© 2026 Ourivo</span>
-                <div style={{ display: 'flex', gap: '20px' }}>
-                    {[['Help', '/help'], ['Feedback', '/feedback'], ['Contact', '/contact'], ['Privacy', '/privacy'], ['Terms', '/terms']].map(([label, href]) => (
-                        <a key={href} href={href} style={{ fontSize: '12px', color: S.textMuted, textDecoration: 'none' }}
-                            onMouseEnter={e => e.currentTarget.style.color = S.textSecondary}
-                            onMouseLeave={e => e.currentTarget.style.color = S.textMuted}>
-                            {label}
-                        </a>
-                    ))}
-                </div>
+                    {/* Count */}
+                    {!loading && (
+                        <div style={{ marginTop: 12, fontSize: 12, color: 'var(--fog)', textAlign: 'right' }}>
+                            {filteredLeads.length} of {leads.length} leads
+                        </div>
+                    )}
+
+                    {/* Mini footer */}
+                    <div style={{ borderTop: '1px solid var(--ice)', marginTop: 48, paddingTop: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+                        <span style={{ fontSize: 12, color: 'var(--fog)' }}>© 2025 Ourivo</span>
+                        <div style={{ display: 'flex', gap: 20 }}>
+                            {[['Help', '/help'], ['Feedback', '/feedback'], ['Contact', '/contact'], ['Privacy', '/privacy'], ['Terms', '/terms']].map(([label, href]) => (
+                                <Link key={href} href={href} style={{ fontSize: 12, color: 'var(--fog)', textDecoration: 'none', transition: 'color 0.15s' }}
+                                    onMouseEnter={e => e.currentTarget.style.color = 'var(--ink)'}
+                                    onMouseLeave={e => e.currentTarget.style.color = 'var(--fog)'}>
+                                    {label}
+                                </Link>
+                            ))}
+                        </div>
+                    </div>
+                </main>
             </div>
 
             <style>{`
-        @keyframes spin { to { transform: rotate(360deg); } }
-        select option { background: #161A22; color: #F5F7FA; }
-        input::placeholder { color: #5C6A7E; }
-      `}</style>
+                @keyframes spin { to { transform: rotate(360deg); } }
+                @keyframes shimmer { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+                input::placeholder { color: var(--fog); }
+                select option { background: #fff; color: var(--ink); }
+            `}</style>
         </div>
     );
 }
