@@ -3,15 +3,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import Cookies from 'js-cookie';
 import toast from 'react-hot-toast';
 import api from '../../../lib/api';
-
-const S = {
-    bg: '#0F1115', surface: '#161A22', surface2: '#1C2130',
-    accent: '#4F8CFF', accentDark: '#3a7aef', border: '#2A3142',
-    textPrimary: '#F5F7FA', textSecondary: '#9AA4B2', textMuted: '#5C6A7E',
-};
 
 const QUESTION_SUGGESTIONS = [
     { question: 'What is your budget?', key: 'budget' },
@@ -30,6 +25,29 @@ const NAV_ITEMS = [
     { id: 'Notifications', label: 'Notifications', icon: '🔔', desc: 'Alerts & channels' },
     { id: 'Subscription', label: 'Subscription', icon: '💳', desc: 'Plan & billing' },
 ];
+
+const inputStyle = {
+    width: '100%', padding: '11px 14px',
+    background: 'var(--mist)',
+    border: '1.5px solid var(--ice)',
+    borderRadius: 'var(--r-btn)',
+    color: 'var(--ink)', fontSize: '14px',
+    fontFamily: 'var(--font-inter)', outline: 'none',
+    transition: 'all 0.18s', boxSizing: 'border-box',
+};
+
+const focusHandlers = {
+    onFocus: e => { e.target.style.border = '1.5px solid var(--ink)'; e.target.style.background = '#fff'; },
+    onBlur: e => { e.target.style.border = '1.5px solid var(--ice)'; e.target.style.background = 'var(--mist)'; },
+};
+
+const sectionStyle = {
+    background: '#fff',
+    border: '1px solid #e8ecf4',
+    borderRadius: 20,
+    padding: '24px',
+    marginBottom: '16px',
+};
 
 export default function SettingsPage() {
     const router = useRouter();
@@ -86,7 +104,7 @@ export default function SettingsPage() {
             setQuestions(config.questions || []);
             setAiRules(config.ai_rules || '');
             setTone(config.tone || 'professional');
-        } catch (error) {
+        } catch {
             toast.error('Failed to load settings');
         } finally {
             setLoading(false);
@@ -97,7 +115,7 @@ export default function SettingsPage() {
         try {
             const response = await api.get('/billing/status');
             setBillingStatus(response.data);
-        } catch (error) { }
+        } catch { }
     };
 
     const handleDeleteAccount = async () => {
@@ -109,7 +127,7 @@ export default function SettingsPage() {
             Cookies.remove('organizationId');
             Cookies.remove('userName');
             router.push('/');
-        } catch (error) {
+        } catch {
             toast.error('Failed to delete account');
             setDeletingAccount(false);
             setShowDeleteAccount(false);
@@ -119,10 +137,7 @@ export default function SettingsPage() {
     const switchTab = (tab) => {
         if (tab === activeTab || animating) return;
         setAnimating(true);
-        setTimeout(() => {
-            setActiveTab(tab);
-            setAnimating(false);
-        }, 220);
+        setTimeout(() => { setActiveTab(tab); setAnimating(false); }, 200);
     };
 
     const handleSave = async () => {
@@ -131,21 +146,18 @@ export default function SettingsPage() {
             await api.put('/settings', {
                 greetingMessage, questions, whatsappPhone,
                 description, workingHours, serviceLocations,
-                website, emailNotifications, aiRules, tone
+                website, emailNotifications, aiRules, tone,
             });
             toast.success('Settings saved');
-        } catch (error) {
+        } catch {
             toast.error('Failed to save settings');
         } finally {
             setSaving(false);
         }
     };
 
-    const generateKey = (questionText) => {
-        return questionText.toLowerCase()
-            .replace(/[^a-z0-9\s]/g, '')
-            .trim().split(/\s+/).slice(0, 2).join('_') || `question_${Date.now()}`;
-    };
+    const generateKey = (questionText) =>
+        questionText.toLowerCase().replace(/[^a-z0-9\s]/g, '').trim().split(/\s+/).slice(0, 2).join('_') || `question_${Date.now()}`;
 
     const updateQuestion = (index, value) => {
         const updated = [...questions];
@@ -153,9 +165,7 @@ export default function SettingsPage() {
         setQuestions(updated);
     };
 
-    const addQuestion = () => {
-        setQuestions([...questions, { id: questions.length + 1, question: '', key: `question_${questions.length + 1}` }]);
-    };
+    const addQuestion = () => setQuestions([...questions, { id: questions.length + 1, question: '', key: `question_${questions.length + 1}` }]);
 
     const addSuggestedQuestion = (suggestion) => {
         if (questions.some(q => q.key === suggestion.key)) { toast.error('Already added'); return; }
@@ -188,69 +198,59 @@ export default function SettingsPage() {
         }, 700);
     };
 
-    const inputStyle = {
-        width: '100%', padding: '10px 14px',
-        background: S.surface2, border: `1.5px solid ${S.border}`,
-        borderRadius: '10px', color: S.textPrimary, fontSize: '14px',
-        fontFamily: 'var(--font-family)', outline: 'none',
-        transition: 'all 180ms ease', boxSizing: 'border-box',
-    };
-
-    const focusHandlers = {
-        onFocus: e => { e.target.style.border = `1.5px solid ${S.accent}`; e.target.style.boxShadow = `0 0 0 3px rgba(79,140,255,0.12)`; },
-        onBlur: e => { e.target.style.border = `1.5px solid ${S.border}`; e.target.style.boxShadow = 'none'; }
-    };
-
-    const sectionStyle = {
-        background: S.surface, border: `1px solid ${S.border}`,
-        borderRadius: '16px', padding: '24px', marginBottom: '16px'
-    };
-
     const SaveButton = ({ label }) => (
         <button onClick={handleSave} disabled={saving} style={{
             width: '100%', padding: '13px',
-            background: saving ? S.surface2 : `linear-gradient(135deg, ${S.accent}, #6366f1)`,
-            border: 'none', borderRadius: '12px',
-            color: 'white', fontSize: '14px', fontWeight: 700,
-            fontFamily: 'var(--font-family)',
+            background: saving ? 'var(--mist)' : 'var(--ink)',
+            border: 'none', borderRadius: 'var(--r-btn)',
+            color: saving ? 'var(--fog)' : '#fff',
+            fontSize: '14px', fontWeight: 700,
+            fontFamily: 'var(--font-inter)',
             cursor: saving ? 'not-allowed' : 'pointer',
-            transition: 'all 200ms ease',
-            boxShadow: saving ? 'none' : `0 4px 24px rgba(79,140,255,0.35)`,
-        }}>
+            transition: 'opacity 0.18s',
+        }}
+            onMouseEnter={e => { if (!saving) e.currentTarget.style.opacity = '0.85'; }}
+            onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+        >
             {saving ? '⏳ Saving...' : `✓ ${label || 'Save Changes'}`}
         </button>
     );
 
     if (loading) {
         return (
-            <div style={{ minHeight: '100vh', background: S.bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <div style={{ width: '24px', height: '24px', border: `2px solid ${S.border}`, borderTopColor: S.accent, borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+            <div style={{ minHeight: '100vh', background: 'var(--ice)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ textAlign: 'center' }}>
+                    <div style={{ width: 24, height: 24, border: '2px solid var(--ice)', borderTopColor: 'var(--ink)', borderRadius: '50%', animation: 'spin 0.7s linear infinite', margin: '0 auto 12px' }} />
+                    <div style={{ fontFamily: 'var(--font-display)', fontSize: 16, color: 'var(--fog)', letterSpacing: 1 }}>LOADING...</div>
+                </div>
                 <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
             </div>
         );
     }
 
     return (
-        <div style={{ minHeight: '100vh', background: S.bg, fontFamily: 'var(--font-family)', color: S.textPrimary }}>
+        <div style={{ minHeight: '100vh', background: 'var(--ice)', fontFamily: 'var(--font-inter)', color: 'var(--ink)' }}>
 
-            {/* Delete Account Modal */}
+            {/* ── Delete Account Modal ── */}
             {showDeleteAccount && (
-                <div style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <div style={{ background: S.surface, border: `1px solid rgba(239,68,68,0.3)`, borderRadius: '16px', padding: '32px', maxWidth: '400px', width: '90%', textAlign: 'center' }}>
-                        <div style={{ fontSize: '36px', marginBottom: '16px' }}>⚠️</div>
-                        <h3 style={{ fontSize: '18px', fontWeight: 700, color: S.textPrimary, marginBottom: '8px' }}>Delete your account?</h3>
-                        <p style={{ fontSize: '13px', color: S.textSecondary, lineHeight: 1.7, marginBottom: '8px' }}>This will permanently delete:</p>
-                        <div style={{ fontSize: '13px', color: S.textMuted, marginBottom: '24px', lineHeight: 1.8 }}>
+                <div style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+                    <div style={{ background: '#fff', border: '1px solid #fecaca', borderRadius: 'var(--r-card)', padding: 32, maxWidth: 400, width: '100%', textAlign: 'center' }}>
+                        <div style={{ width: 48, height: 48, background: '#fef2f2', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, margin: '0 auto 16px' }}>⚠️</div>
+                        <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 24, letterSpacing: 0.5, color: 'var(--ink)', marginBottom: 10 }}>DELETE ACCOUNT?</h3>
+                        <p style={{ fontSize: 13, color: 'var(--ash)', lineHeight: 1.7, marginBottom: 8 }}>This will permanently delete:</p>
+                        <div style={{ fontSize: 13, color: 'var(--fog)', marginBottom: 24, lineHeight: 1.9, textAlign: 'left', background: 'var(--mist)', borderRadius: 12, padding: '14px 18px' }}>
                             • All your leads and conversations<br />
                             • Your chatbot settings<br />
                             • Your account and login<br />
                             • Subscription cancelled — no more charges
                         </div>
-                        <div style={{ display: 'flex', gap: '10px' }}>
-                            <button onClick={() => setShowDeleteAccount(false)} disabled={deletingAccount} style={{ flex: 1, padding: '11px', borderRadius: '8px', border: `1px solid ${S.border}`, background: 'transparent', color: S.textSecondary, fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-family)' }}>
+                        <div style={{ display: 'flex', gap: 10 }}>
+                            <button onClick={() => setShowDeleteAccount(false)} disabled={deletingAccount}
+                                style={{ flex: 1, padding: '12px', borderRadius: 'var(--r-btn)', border: '1.5px solid var(--ice)', background: 'transparent', color: 'var(--ash)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-inter)' }}>
                                 Cancel
                             </button>
-                            <button onClick={handleDeleteAccount} disabled={deletingAccount} style={{ flex: 1, padding: '11px', borderRadius: '8px', border: 'none', background: '#ef4444', color: 'white', fontSize: '13px', fontWeight: 600, cursor: deletingAccount ? 'not-allowed' : 'pointer', fontFamily: 'var(--font-family)', opacity: deletingAccount ? 0.6 : 1 }}>
+                            <button onClick={handleDeleteAccount} disabled={deletingAccount}
+                                style={{ flex: 1, padding: '12px', borderRadius: 'var(--r-btn)', border: 'none', background: '#ef4444', color: '#fff', fontSize: 13, fontWeight: 700, cursor: deletingAccount ? 'not-allowed' : 'pointer', fontFamily: 'var(--font-inter)', opacity: deletingAccount ? 0.6 : 1 }}>
                                 {deletingAccount ? 'Deleting...' : 'Yes, Delete Everything'}
                             </button>
                         </div>
@@ -258,39 +258,42 @@ export default function SettingsPage() {
                 </div>
             )}
 
-            {/* Sandbox panel */}
+            {/* ── Sandbox panel (slides from right) ── */}
             <div style={{
-                position: 'fixed', top: 0, right: 0, bottom: 0, width: '360px',
-                background: S.surface, borderLeft: `1px solid ${S.border}`,
+                position: 'fixed', top: 0, right: 0, bottom: 0, width: 360,
+                background: '#fff', borderLeft: '1px solid #e8ecf4',
                 zIndex: 200, display: 'flex', flexDirection: 'column',
-                boxShadow: '-8px 0 40px rgba(0,0,0,0.5)',
                 transform: sandboxOpen ? 'translateX(0)' : 'translateX(100%)',
-                transition: 'transform 320ms cubic-bezier(0.4, 0, 0.2, 1)'
+                transition: 'transform 0.32s cubic-bezier(0.4, 0, 0.2, 1)',
             }}>
-                <div style={{ padding: '16px 20px', borderBottom: `1px solid ${S.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(79,140,255,0.05)' }}>
+                {/* Sandbox header */}
+                <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--ice)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--mist)' }}>
                     <div>
-                        <div style={{ fontSize: '14px', fontWeight: 700, color: S.textPrimary }}>🧪 Chatbot Sandbox</div>
-                        <div style={{ fontSize: '11px', color: S.textMuted, marginTop: '2px' }}>Preview your chatbot as a lead would see it</div>
+                        <div style={{ fontFamily: 'var(--font-display)', fontSize: 18, color: 'var(--ink)', letterSpacing: 0.5 }}>CHATBOT SANDBOX</div>
+                        <div style={{ fontSize: 11, color: 'var(--fog)', marginTop: 2 }}>Preview as a lead would see it</div>
                     </div>
-                    <div style={{ display: 'flex', gap: '6px' }}>
-                        <button onClick={() => { setSandboxMessages([]); setSandboxInput(''); }} style={{ padding: '4px 10px', fontSize: '11px', fontWeight: 600, background: 'transparent', border: `1px solid ${S.border}`, borderRadius: '6px', color: S.textMuted, cursor: 'pointer', fontFamily: 'var(--font-family)' }}>Reset</button>
-                        <button onClick={() => setSandboxOpen(false)} style={{ padding: '4px 10px', fontSize: '11px', fontWeight: 600, background: 'transparent', border: `1px solid ${S.border}`, borderRadius: '6px', color: S.textMuted, cursor: 'pointer', fontFamily: 'var(--font-family)' }}>✕</button>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                        <button onClick={() => { setSandboxMessages([]); setSandboxInput(''); }}
+                            style={{ padding: '5px 10px', fontSize: 11, fontWeight: 600, background: 'transparent', border: '1px solid var(--ice)', borderRadius: 6, color: 'var(--ash)', cursor: 'pointer', fontFamily: 'var(--font-inter)' }}>Reset</button>
+                        <button onClick={() => setSandboxOpen(false)}
+                            style={{ padding: '5px 10px', fontSize: 11, fontWeight: 600, background: 'transparent', border: '1px solid var(--ice)', borderRadius: 6, color: 'var(--ash)', cursor: 'pointer', fontFamily: 'var(--font-inter)' }}>✕</button>
                     </div>
                 </div>
-                <div style={{ margin: '12px 16px 0', padding: '10px 14px', background: 'rgba(79,140,255,0.06)', border: `1px solid rgba(79,140,255,0.15)`, borderRadius: '8px', fontSize: '11px', color: S.textSecondary, lineHeight: 1.6 }}>
-                    💡 Type a message to simulate how a real lead experiences your chatbot. Try saying "Hi" to start.
+                <div style={{ margin: '12px 16px 0', padding: '10px 14px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 10, fontSize: 11, color: 'var(--ash)', lineHeight: 1.6 }}>
+                    💡 Type a message to simulate how a lead experiences your bot. Try saying &ldquo;Hi&rdquo; to start.
                 </div>
-                <div style={{ flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {/* Sandbox messages */}
+                <div style={{ flex: 1, overflowY: 'auto', padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
                     {sandboxMessages.length === 0 && (
-                        <div style={{ textAlign: 'center', color: S.textMuted, fontSize: '12px', marginTop: '40px', lineHeight: 1.8 }}>
-                            <div style={{ fontSize: '32px', marginBottom: '8px' }}>💬</div>
+                        <div style={{ textAlign: 'center', color: 'var(--fog)', fontSize: 12, marginTop: 40, lineHeight: 1.8 }}>
+                            <div style={{ fontSize: 32, marginBottom: 8 }}>💬</div>
                             Send a message to start the simulation
                         </div>
                     )}
                     {sandboxMessages.map((msg, i) => (
                         <div key={i} style={{ display: 'flex', justifyContent: msg.sender === 'user' ? 'flex-end' : 'flex-start' }}>
-                            <div style={{ maxWidth: '80%', padding: '10px 14px', borderRadius: msg.sender === 'user' ? '14px 4px 14px 14px' : '4px 14px 14px 14px', background: msg.sender === 'user' ? 'rgba(79,140,255,0.2)' : S.surface2, border: `1px solid ${msg.sender === 'user' ? 'rgba(79,140,255,0.3)' : S.border}`, fontSize: '13px', color: S.textSecondary, lineHeight: 1.6, whiteSpace: 'pre-line' }}>
-                                <div style={{ fontSize: '10px', fontWeight: 700, color: msg.sender === 'user' ? S.accent : '#a78bfa', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                            <div style={{ maxWidth: '80%', padding: '10px 14px', borderRadius: msg.sender === 'user' ? '14px 4px 14px 14px' : '4px 14px 14px 14px', background: msg.sender === 'user' ? 'var(--mist)' : 'var(--ink)', border: `1px solid ${msg.sender === 'user' ? 'var(--ice)' : 'var(--ink)'}`, fontSize: 13, color: msg.sender === 'user' ? 'var(--ink)' : '#fff', lineHeight: 1.6, whiteSpace: 'pre-line' }}>
+                                <div style={{ fontSize: 9, fontWeight: 800, color: msg.sender === 'user' ? 'var(--fog)' : 'var(--green)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                                     {msg.sender === 'user' ? 'Lead' : 'Bot'}
                                 </div>
                                 {msg.text}
@@ -299,177 +302,203 @@ export default function SettingsPage() {
                     ))}
                     <div ref={sandboxEndRef} />
                 </div>
-                <div style={{ padding: '12px 16px', borderTop: `1px solid ${S.border}`, display: 'flex', gap: '8px' }}>
-                    <input type="text" value={sandboxInput} onChange={e => setSandboxInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSandboxSend()} placeholder="Type as a lead..." style={{ ...inputStyle, padding: '8px 12px', fontSize: '13px' }} />
-                    <button onClick={handleSandboxSend} style={{ padding: '8px 14px', background: `linear-gradient(135deg, ${S.accent}, #6366f1)`, border: 'none', borderRadius: '8px', color: 'white', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-family)', whiteSpace: 'nowrap' }}>Send</button>
+                {/* Sandbox input */}
+                <div style={{ padding: '12px 16px', borderTop: '1px solid var(--ice)', background: 'var(--mist)', display: 'flex', gap: 8 }}>
+                    <input type="text" value={sandboxInput} onChange={e => setSandboxInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSandboxSend()} placeholder="Type as a lead..."
+                        style={{ ...inputStyle, padding: '9px 12px', fontSize: 13 }}
+                        onFocus={e => { e.target.style.border = '1.5px solid var(--ink)'; e.target.style.background = '#fff'; }}
+                        onBlur={e => { e.target.style.border = '1.5px solid var(--ice)'; e.target.style.background = 'var(--mist)'; }}
+                    />
+                    <button onClick={handleSandboxSend}
+                        style={{ padding: '9px 16px', background: 'var(--ink)', border: 'none', borderRadius: 'var(--r-btn)', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-inter)', whiteSpace: 'nowrap' }}>
+                        Send
+                    </button>
                 </div>
             </div>
 
-            {/* Navbar */}
-            <nav style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 32px', height: '58px', background: S.surface, borderBottom: `1px solid ${S.border}`, position: 'sticky', top: 0, zIndex: 100 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <img src="/logo.png" alt="Ourivo" style={{ width: '36px', height: '36px', objectFit: 'contain' }} />
-                    <span style={{ fontWeight: 800, fontSize: '16px', fontFamily: 'Georgia, serif' }}>
-                        <span style={{ color: S.textPrimary }}>Our</span><span style={{ color: S.accent }}>ivo</span>
-                    </span>
-                </div>
-                <Link href="/dashboard" style={{ padding: '6px 14px', background: 'transparent', border: `1px solid ${S.border}`, borderRadius: '8px', color: S.textSecondary, fontSize: '13px', fontWeight: 500, textDecoration: 'none' }}>
-                    {'← Back to Dashboard'}
+            {/* ── Navbar ── */}
+            <nav style={{
+                position: 'sticky', top: 0, zIndex: 100,
+                height: 62, display: 'flex', alignItems: 'center',
+                justifyContent: 'space-between', padding: '0 32px',
+                background: '#fff', borderBottom: '1px solid #e8ecf4',
+            }}>
+                <Link href="/dashboard" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
+                    <Image src="/logo.png" alt="Ourivo" width={34} height={34} style={{ borderRadius: 8 }} />
+                    <span style={{ fontFamily: 'var(--font-display)', fontSize: 22, color: 'var(--ink)', letterSpacing: 1.5 }}>OURIVO</span>
+                </Link>
+                <Link href="/dashboard"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 'var(--r-btn)', border: '1.5px solid var(--ice)', color: 'var(--ash)', fontSize: 13, fontWeight: 600, textDecoration: 'none', transition: 'all 0.18s' }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--ink)'; e.currentTarget.style.color = 'var(--ink)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--ice)'; e.currentTarget.style.color = 'var(--ash)'; }}>
+                    ← Back to Dashboard
                 </Link>
             </nav>
 
-            {/* Main layout */}
-            <div style={{ display: 'flex', minHeight: 'calc(100vh - 58px)' }}>
+            {/* ── Main layout ── */}
+            <div style={{ display: 'flex', minHeight: 'calc(100vh - 62px)' }}>
 
-                {/* Left Sidebar */}
-                <div style={{ width: '240px', background: S.surface, borderRight: `1px solid ${S.border}`, padding: '24px 12px', flexShrink: 0, position: 'sticky', top: '58px', height: 'calc(100vh - 58px)', overflowY: 'auto' }}>
-                    <div style={{ padding: '0 8px', marginBottom: '20px' }}>
-                        <div style={{ fontSize: '11px', fontWeight: 700, color: S.textMuted, letterSpacing: '0.1em', textTransform: 'uppercase' }}>Settings</div>
-                    </div>
+                {/* Settings sidebar */}
+                <aside style={{
+                    width: 240, flexShrink: 0,
+                    background: '#fff', borderRight: '1px solid #e8ecf4',
+                    padding: '24px 14px',
+                    position: 'sticky', top: 62,
+                    height: 'calc(100vh - 62px)',
+                    overflowY: 'auto',
+                }}>
+                    <div style={{ fontSize: 9, fontWeight: 800, color: 'var(--fog)', textTransform: 'uppercase', letterSpacing: '0.14em', padding: '0 10px 10px' }}>Settings</div>
 
                     {NAV_ITEMS.map(item => {
                         const isActive = activeTab === item.id;
                         return (
                             <button key={item.id} onClick={() => switchTab(item.id)} style={{
-                                width: '100%', display: 'flex', alignItems: 'center', gap: '12px',
-                                padding: '10px 12px', borderRadius: '10px', border: 'none',
-                                background: isActive ? 'linear-gradient(135deg, rgba(79,140,255,0.15), rgba(99,102,241,0.1))' : 'transparent',
-                                cursor: 'pointer', fontFamily: 'var(--font-family)',
-                                marginBottom: '4px', textAlign: 'left',
-                                transition: 'all 200ms ease',
-                                outline: isActive ? `1px solid rgba(79,140,255,0.2)` : 'none',
-                                position: 'relative', overflow: 'hidden'
+                                width: '100%', display: 'flex', alignItems: 'center', gap: 12,
+                                padding: '10px 12px', borderRadius: 'var(--r-nav)', border: 'none',
+                                background: isActive ? 'var(--ink)' : 'transparent',
+                                cursor: 'pointer', fontFamily: 'var(--font-inter)',
+                                marginBottom: 2, textAlign: 'left',
+                                transition: 'all 0.18s', position: 'relative',
                             }}
-                                onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = S.surface2; }}
-                                onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent'; }}
+                                onMouseEnter={e => { if (!isActive) { e.currentTarget.style.background = 'var(--mist)'; } }}
+                                onMouseLeave={e => { if (!isActive) { e.currentTarget.style.background = 'transparent'; } }}
                             >
-                                {isActive && (
-                                    <div style={{ position: 'absolute', left: 0, top: '20%', bottom: '20%', width: '3px', background: `linear-gradient(180deg, ${S.accent}, #6366f1)`, borderRadius: '0 4px 4px 0' }} />
-                                )}
-                                <span style={{ fontSize: '18px', flexShrink: 0 }}>{item.icon}</span>
+                                <span style={{ fontSize: 18, flexShrink: 0 }}>{item.icon}</span>
                                 <div>
-                                    <div style={{ fontSize: '13px', fontWeight: isActive ? 700 : 500, color: isActive ? S.textPrimary : S.textSecondary, transition: 'all 200ms ease' }}>{item.label}</div>
-                                    <div style={{ fontSize: '11px', color: S.textMuted, marginTop: '1px' }}>{item.desc}</div>
+                                    <div style={{ fontSize: 13, fontWeight: isActive ? 700 : 500, color: isActive ? '#fff' : 'var(--ash)', transition: 'color 0.18s' }}>{item.label}</div>
+                                    <div style={{ fontSize: 10, color: isActive ? 'var(--fog)' : 'var(--fog)', marginTop: 1 }}>{item.desc}</div>
                                 </div>
                             </button>
                         );
                     })}
 
+                    {/* Sandbox trigger — only on Chatbot tab */}
                     {activeTab === 'Chatbot' && (
-                        <div style={{ marginTop: '20px', padding: '0 4px' }}>
-                            <div style={{ height: '1px', background: S.border, marginBottom: '16px' }} />
-                            <button onClick={() => setSandboxOpen(!sandboxOpen)} style={{ width: '100%', padding: '10px 12px', background: sandboxOpen ? 'rgba(79,140,255,0.12)' : 'rgba(79,140,255,0.06)', border: `1px solid rgba(79,140,255,0.2)`, borderRadius: '10px', cursor: 'pointer', fontFamily: 'var(--font-family)', display: 'flex', alignItems: 'center', gap: '10px', transition: 'all 200ms ease' }}>
-                                <span style={{ fontSize: '16px' }}>🧪</span>
+                        <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--ice)' }}>
+                            <button onClick={() => setSandboxOpen(!sandboxOpen)} style={{
+                                width: '100%', padding: '11px 12px',
+                                background: sandboxOpen ? 'var(--green)' : 'var(--mist)',
+                                border: `1.5px solid ${sandboxOpen ? 'var(--green)' : 'var(--ice)'}`,
+                                borderRadius: 'var(--r-nav)', cursor: 'pointer',
+                                fontFamily: 'var(--font-inter)',
+                                display: 'flex', alignItems: 'center', gap: 10,
+                                transition: 'all 0.18s',
+                            }}>
+                                <span style={{ fontSize: 16 }}>🧪</span>
                                 <div style={{ textAlign: 'left' }}>
-                                    <div style={{ fontSize: '12px', fontWeight: 700, color: S.accent }}>Test Chatbot</div>
-                                    <div style={{ fontSize: '10px', color: S.textMuted, marginTop: '1px' }}>Open sandbox</div>
+                                    <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink)' }}>Test Chatbot</div>
+                                    <div style={{ fontSize: 10, color: 'var(--fog)', marginTop: 1 }}>Open sandbox</div>
                                 </div>
-                                <span style={{ marginLeft: 'auto', fontSize: '10px', padding: '2px 6px', background: 'rgba(79,140,255,0.15)', borderRadius: '4px', color: S.accent, fontWeight: 700 }}>LIVE</span>
+                                <span style={{ marginLeft: 'auto', fontSize: 9, padding: '2px 7px', background: 'var(--ink)', borderRadius: 4, color: '#fff', fontWeight: 800, letterSpacing: '0.05em' }}>LIVE</span>
                             </button>
                         </div>
                     )}
-                </div>
+                </aside>
 
                 {/* Content area */}
-                <div style={{ flex: 1, padding: '32px 40px', maxWidth: '720px' }}>
-                    <div style={{ marginBottom: '28px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '6px' }}>
-                            <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: 'linear-gradient(135deg, rgba(79,140,255,0.2), rgba(99,102,241,0.15))', border: `1px solid rgba(79,140,255,0.2)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }}>
+                <main style={{ flex: 1, padding: '32px 40px', maxWidth: 720 }}>
+
+                    {/* Section heading */}
+                    <div style={{ marginBottom: 28 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 6 }}>
+                            <div style={{ width: 40, height: 40, background: 'var(--ink)', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>
                                 {NAV_ITEMS.find(n => n.id === activeTab)?.icon}
                             </div>
-                            <h1 style={{ fontSize: '22px', fontWeight: 700, color: S.textPrimary, letterSpacing: '-0.02em' }}>{activeTab}</h1>
+                            <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 36, color: 'var(--ink)', letterSpacing: -1, lineHeight: 0.95 }}>
+                                {activeTab.toUpperCase()}.
+                            </h1>
                         </div>
-                        <p style={{ color: S.textMuted, fontSize: '13px', marginLeft: '50px' }}>
+                        <p style={{ fontSize: 13, color: 'var(--ash)', marginLeft: 54 }}>
                             {NAV_ITEMS.find(n => n.id === activeTab)?.desc}
                         </p>
                     </div>
 
-                    <div style={{ animation: animating ? 'slideOut 0.22s ease forwards' : 'slideIn 0.3s ease forwards' }}>
+                    <div style={{ opacity: animating ? 0 : 1, transform: animating ? 'translateX(12px)' : 'none', transition: 'all 0.2s' }}>
 
-                        {/* ACCOUNT TAB */}
+                        {/* ── ACCOUNT TAB ── */}
                         {activeTab === 'Account' && (
                             <div>
                                 <div style={sectionStyle}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-                                        <span style={{ fontSize: '16px' }}>🏢</span>
-                                        <h3 style={{ fontSize: '13px', fontWeight: 700, color: S.textPrimary }}>Business Information</h3>
-                                    </div>
-                                    <p style={{ fontSize: '12px', color: S.textMuted, marginBottom: '20px', lineHeight: 1.6, paddingLeft: '24px' }}>
+                                    <div style={{ fontSize: 10, fontWeight: 800, color: 'var(--fog)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 4 }}>🏢 Business Information</div>
+                                    <p style={{ fontSize: 12, color: 'var(--fog)', marginBottom: 20, lineHeight: 1.6 }}>
                                         Used by your AI chatbot to answer questions about your business accurately.
                                     </p>
-                                    <div style={{ marginBottom: '16px' }}>
-                                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: S.textSecondary, marginBottom: '8px' }}>Business Name</label>
+
+                                    <div style={{ marginBottom: 16 }}>
+                                        <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--fog)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Business Name</label>
                                         <input type="text" value={orgName} disabled style={{ ...inputStyle, opacity: 0.5, cursor: 'not-allowed' }} />
-                                        <p style={{ fontSize: '11px', color: S.textMuted, marginTop: '4px' }}>Contact support to change your business name</p>
+                                        <p style={{ fontSize: 11, color: 'var(--fog)', marginTop: 4 }}>Contact support to change your business name</p>
                                     </div>
-                                    <div style={{ marginBottom: '16px' }}>
-                                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: S.textSecondary, marginBottom: '8px' }}>Business Description</label>
+
+                                    <div style={{ marginBottom: 16 }}>
+                                        <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--fog)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Business Description</label>
                                         <textarea value={description} onChange={e => setDescription(e.target.value)} rows={3}
-                                            placeholder="e.g. We are a premium real estate agency in Bangalore specializing in residential properties."
+                                            placeholder="e.g. We are a premium real estate agency in Bangalore specialising in residential properties."
                                             style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.6 }} {...focusHandlers} />
                                     </div>
-                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
                                         <div>
-                                            <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: S.textSecondary, marginBottom: '8px' }}>Working Hours</label>
+                                            <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--fog)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Working Hours</label>
                                             <input type="text" value={workingHours} onChange={e => setWorkingHours(e.target.value)} placeholder="e.g. 9 AM - 6 PM, Mon-Sat" style={inputStyle} {...focusHandlers} />
                                         </div>
                                         <div>
-                                            <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: S.textSecondary, marginBottom: '8px' }}>Website (optional)</label>
+                                            <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--fog)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Website (optional)</label>
                                             <input type="text" value={website} onChange={e => setWebsite(e.target.value)} placeholder="e.g. www.sharmaproperties.com" style={inputStyle} {...focusHandlers} />
                                         </div>
                                     </div>
+
                                     <div>
-                                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: S.textSecondary, marginBottom: '8px' }}>Service Locations</label>
+                                        <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--fog)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Service Locations</label>
                                         <input type="text" value={serviceLocations} onChange={e => setServiceLocations(e.target.value)}
                                             placeholder="e.g. Whitefield, Electronic City, Sarjapur Road"
                                             style={inputStyle} {...focusHandlers} />
-                                        <p style={{ fontSize: '11px', color: S.textMuted, marginTop: '4px' }}>Areas where you operate</p>
+                                        <p style={{ fontSize: 11, color: 'var(--fog)', marginTop: 4 }}>Areas where you operate</p>
                                     </div>
                                 </div>
                                 <SaveButton label="Save Account Settings" />
                             </div>
                         )}
 
-                        {/* CHATBOT TAB */}
+                        {/* ── CHATBOT TAB ── */}
                         {activeTab === 'Chatbot' && (
                             <div>
+                                {/* Greeting */}
                                 <div style={sectionStyle}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
-                                        <span style={{ fontSize: '16px' }}>👋</span>
-                                        <h3 style={{ fontSize: '13px', fontWeight: 700, color: S.textPrimary }}>Greeting Message</h3>
-                                    </div>
+                                    <div style={{ fontSize: 10, fontWeight: 800, color: 'var(--fog)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 14 }}>👋 Greeting Message</div>
                                     <textarea value={greetingMessage} onChange={e => setGreetingMessage(e.target.value)} rows={3}
                                         placeholder="e.g. Hello! Welcome to Sharma Properties. I am here to help you find your dream home."
                                         style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.6 }} {...focusHandlers} />
                                 </div>
 
+                                {/* Questions */}
                                 <div style={sectionStyle}>
-                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                            <span style={{ fontSize: '16px' }}>❓</span>
-                                            <h3 style={{ fontSize: '13px', fontWeight: 700, color: S.textPrimary }}>Qualifying Questions</h3>
-                                        </div>
-                                        <div style={{ display: 'flex', gap: '8px' }}>
-                                            <button onClick={() => setShowSuggestions(!showSuggestions)} style={{ padding: '5px 12px', background: 'rgba(167,139,250,0.1)', border: `1px solid rgba(167,139,250,0.2)`, borderRadius: '7px', color: '#a78bfa', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-family)' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                                        <div style={{ fontSize: 10, fontWeight: 800, color: 'var(--fog)', textTransform: 'uppercase', letterSpacing: '0.12em' }}>❓ Qualifying Questions</div>
+                                        <div style={{ display: 'flex', gap: 8 }}>
+                                            <button onClick={() => setShowSuggestions(!showSuggestions)}
+                                                style={{ padding: '5px 12px', background: 'var(--green)', border: 'none', borderRadius: 'var(--r-btn)', color: 'var(--ink)', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-inter)' }}>
                                                 💡 Suggestions
                                             </button>
-                                            <button onClick={addQuestion} style={{ padding: '5px 12px', background: 'rgba(79,140,255,0.1)', border: `1px solid rgba(79,140,255,0.2)`, borderRadius: '7px', color: S.accent, fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-family)' }}>
+                                            <button onClick={addQuestion}
+                                                style={{ padding: '5px 12px', background: 'var(--ink)', border: 'none', borderRadius: 'var(--r-btn)', color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-inter)' }}>
                                                 + Add
                                             </button>
                                         </div>
                                     </div>
-                                    <p style={{ fontSize: '12px', color: S.textMuted, marginBottom: '16px', lineHeight: 1.6 }}>
+                                    <p style={{ fontSize: 12, color: 'var(--fog)', marginBottom: 16, lineHeight: 1.6 }}>
                                         Asked one at a time. Answers are saved automatically to the lead profile.
                                     </p>
 
                                     {showSuggestions && (
-                                        <div style={{ background: 'rgba(167,139,250,0.05)', border: `1px solid rgba(167,139,250,0.15)`, borderRadius: '12px', padding: '16px', marginBottom: '16px' }}>
-                                            <p style={{ fontSize: '12px', color: '#a78bfa', fontWeight: 600, marginBottom: '12px' }}>💡 Real estate questions — click to add</p>
-                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                                        <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 14, padding: 16, marginBottom: 16 }}>
+                                            <p style={{ fontSize: 11, fontWeight: 700, color: '#16a34a', marginBottom: 12 }}>Real estate questions — click to add</p>
+                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                                                 {QUESTION_SUGGESTIONS.map((s, i) => (
-                                                    <button key={i} onClick={() => addSuggestedQuestion(s)} style={{ padding: '6px 14px', background: 'rgba(167,139,250,0.08)', border: `1px solid rgba(167,139,250,0.2)`, borderRadius: '999px', color: S.textSecondary, fontSize: '12px', cursor: 'pointer', fontFamily: 'var(--font-family)', transition: 'all 180ms ease' }}
-                                                        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(167,139,250,0.18)'; e.currentTarget.style.color = '#a78bfa'; }}
-                                                        onMouseLeave={e => { e.currentTarget.style.background = 'rgba(167,139,250,0.08)'; e.currentTarget.style.color = S.textSecondary; }}>
+                                                    <button key={i} onClick={() => addSuggestedQuestion(s)}
+                                                        style={{ padding: '6px 14px', background: 'var(--green)', border: 'none', borderRadius: 20, color: 'var(--ink)', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-inter)', transition: 'opacity 0.15s' }}
+                                                        onMouseEnter={e => e.currentTarget.style.opacity = '0.8'}
+                                                        onMouseLeave={e => e.currentTarget.style.opacity = '1'}>
                                                         + {s.question}
                                                     </button>
                                                 ))}
@@ -478,48 +507,51 @@ export default function SettingsPage() {
                                     )}
 
                                     {questions.map((q, i) => (
-                                        <div key={i} style={{ padding: '14px 16px', background: S.surface2, border: `1px solid ${S.border}`, borderRadius: '10px', marginBottom: '10px' }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                    <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: `linear-gradient(135deg, ${S.accent}, #6366f1)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', color: 'white', fontWeight: 700 }}>
+                                        <div key={i} style={{ padding: '14px 16px', background: 'var(--mist)', border: '1px solid var(--ice)', borderRadius: 14, marginBottom: 10 }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                                    <div style={{ width: 22, height: 22, borderRadius: '50%', background: 'var(--ink)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-display)', fontSize: 13, color: '#fff' }}>
                                                         {i + 1}
                                                     </div>
-                                                    <span style={{ fontSize: '11px', fontWeight: 600, color: S.textMuted }}>Question {i + 1}</span>
+                                                    <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--fog)' }}>Question {i + 1}</span>
                                                 </div>
-                                                <button onClick={() => removeQuestion(i)} style={{ padding: '3px 8px', background: 'rgba(248,113,113,0.1)', border: `1px solid rgba(248,113,113,0.2)`, borderRadius: '5px', color: '#f87171', fontSize: '11px', cursor: 'pointer', fontFamily: 'var(--font-family)' }}>Remove</button>
+                                                <button onClick={() => removeQuestion(i)}
+                                                    style={{ padding: '3px 10px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 6, color: '#b91c1c', fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-inter)' }}>
+                                                    Remove
+                                                </button>
                                             </div>
                                             <input type="text" value={q.question} onChange={e => updateQuestion(i, e.target.value)} placeholder="e.g. What is your budget?" style={inputStyle} {...focusHandlers} />
-                                            <p style={{ fontSize: '11px', color: S.textMuted, marginTop: '6px' }}>
-                                                Key: <code style={{ color: S.accent, background: 'rgba(79,140,255,0.1)', padding: '1px 6px', borderRadius: '4px' }}>{q.key}</code>
+                                            <p style={{ fontSize: 11, color: 'var(--fog)', marginTop: 6 }}>
+                                                Key: <code style={{ color: 'var(--ink)', background: 'var(--ice)', padding: '1px 6px', borderRadius: 4, fontFamily: 'monospace' }}>{q.key}</code>
                                             </p>
                                         </div>
                                     ))}
 
                                     {questions.length === 0 && (
-                                        <div style={{ textAlign: 'center', padding: '32px', color: S.textMuted, fontSize: '13px' }}>
+                                        <div style={{ textAlign: 'center', padding: 32, color: 'var(--fog)', fontSize: 13 }}>
                                             No questions yet. Use suggestions or add your own.
                                         </div>
                                     )}
                                 </div>
 
+                                {/* AI Rules */}
                                 <div style={sectionStyle}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
-                                        <span style={{ fontSize: '16px' }}>🛡️</span>
-                                        <h3 style={{ fontSize: '13px', fontWeight: 700, color: S.textPrimary }}>AI Response Rules</h3>
-                                    </div>
-                                    <p style={{ fontSize: '12px', color: S.textMuted, marginBottom: '16px', lineHeight: 1.6 }}>
+                                    <div style={{ fontSize: 10, fontWeight: 800, color: 'var(--fog)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 6 }}>🛡️ AI Response Rules</div>
+                                    <p style={{ fontSize: 12, color: 'var(--fog)', marginBottom: 16, lineHeight: 1.6 }}>
                                         Set guardrails — what to avoid, how to behave, and what tone to use.
                                     </p>
-                                    <div style={{ marginBottom: '16px' }}>
-                                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: S.textSecondary, marginBottom: '8px' }}>Tone</label>
-                                        <select value={tone} onChange={e => setTone(e.target.value)} style={{ ...inputStyle, cursor: 'pointer' }}>
+                                    <div style={{ marginBottom: 16 }}>
+                                        <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--fog)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Tone</label>
+                                        <select value={tone} onChange={e => setTone(e.target.value)} style={{ ...inputStyle, cursor: 'pointer' }}
+                                            onFocus={e => { e.target.style.border = '1.5px solid var(--ink)'; e.target.style.background = '#fff'; }}
+                                            onBlur={e => { e.target.style.border = '1.5px solid var(--ice)'; e.target.style.background = 'var(--mist)'; }}>
                                             <option value="professional">Professional</option>
                                             <option value="friendly">Friendly & Casual</option>
                                             <option value="formal">Formal</option>
                                         </select>
                                     </div>
                                     <div>
-                                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: S.textSecondary, marginBottom: '8px' }}>Custom Rules (one per line)</label>
+                                        <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--fog)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Custom Rules (one per line)</label>
                                         <textarea value={aiRules} onChange={e => setAiRules(e.target.value)} rows={5}
                                             placeholder={`e.g.\nNever discuss competitor pricing\nAlways ask budget before recommending properties\nNever promise availability without checking\nKeep replies short and clear`}
                                             style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.8 }} {...focusHandlers} />
@@ -530,51 +562,49 @@ export default function SettingsPage() {
                             </div>
                         )}
 
-                        {/* NOTIFICATIONS TAB */}
+                        {/* ── NOTIFICATIONS TAB ── */}
                         {activeTab === 'Notifications' && (
                             <div>
                                 <div style={sectionStyle}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '20px' }}>
-                                        <span style={{ fontSize: '16px' }}>📱</span>
-                                        <h3 style={{ fontSize: '13px', fontWeight: 700, color: S.textPrimary }}>Notification Channels</h3>
-                                    </div>
-                                    <div style={{ marginBottom: '20px' }}>
-                                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: S.textSecondary, marginBottom: '8px' }}>WhatsApp Notification Number</label>
+                                    <div style={{ fontSize: 10, fontWeight: 800, color: 'var(--fog)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 20 }}>📱 Notification Channels</div>
+
+                                    <div style={{ marginBottom: 20 }}>
+                                        <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--fog)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.08em' }}>WhatsApp Notification Number</label>
                                         <input type="text" value={whatsappPhone} onChange={e => setWhatsappPhone(e.target.value)}
                                             placeholder="e.g. 917294034023 (include country code, no +)"
                                             style={inputStyle} {...focusHandlers} />
-                                        <p style={{ fontSize: '11px', color: S.textMuted, marginTop: '4px' }}>You will receive a WhatsApp message here when a new lead arrives</p>
+                                        <p style={{ fontSize: 11, color: 'var(--fog)', marginTop: 4 }}>You will receive a WhatsApp message here when a new lead arrives</p>
                                     </div>
+
                                     <div>
-                                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: S.textSecondary, marginBottom: '8px' }}>Email Notifications</label>
-                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', background: S.surface2, border: `1px solid ${S.border}`, borderRadius: '12px' }}>
+                                        <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--fog)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Email Notifications</label>
+                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', background: 'var(--mist)', border: '1px solid var(--ice)', borderRadius: 14 }}>
                                             <div>
-                                                <div style={{ fontSize: '13px', color: S.textPrimary, fontWeight: 500 }}>Send email on new lead</div>
-                                                <div style={{ fontSize: '11px', color: S.textMuted, marginTop: '2px' }}>Sent to: {orgEmail || 'your registered email'}</div>
+                                                <div style={{ fontSize: 13, color: 'var(--ink)', fontWeight: 600 }}>Send email on new lead</div>
+                                                <div style={{ fontSize: 11, color: 'var(--fog)', marginTop: 2 }}>Sent to: {orgEmail || 'your registered email'}</div>
                                             </div>
-                                            <div onClick={() => setEmailNotifications(!emailNotifications)} style={{ width: '44px', height: '24px', background: emailNotifications ? `linear-gradient(135deg, ${S.accent}, #6366f1)` : S.border, borderRadius: '999px', cursor: 'pointer', position: 'relative', transition: 'all 250ms ease' }}>
-                                                <div style={{ position: 'absolute', top: '3px', left: emailNotifications ? '22px' : '3px', width: '18px', height: '18px', background: 'white', borderRadius: '50%', transition: 'all 250ms cubic-bezier(0.4, 0, 0.2, 1)', boxShadow: '0 1px 4px rgba(0,0,0,0.3)' }} />
+                                            {/* Toggle */}
+                                            <div onClick={() => setEmailNotifications(!emailNotifications)}
+                                                style={{ width: 44, height: 24, background: emailNotifications ? 'var(--ink)' : 'var(--ice)', borderRadius: 999, cursor: 'pointer', position: 'relative', transition: 'background 0.25s', flexShrink: 0 }}>
+                                                <div style={{ position: 'absolute', top: 3, left: emailNotifications ? 22 : 3, width: 18, height: 18, background: '#fff', borderRadius: '50%', transition: 'left 0.25s cubic-bezier(0.4,0,0.2,1)', boxShadow: '0 1px 4px rgba(0,0,0,0.2)' }} />
                                             </div>
                                         </div>
                                     </div>
                                 </div>
 
                                 <div style={sectionStyle}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
-                                        <span style={{ fontSize: '16px' }}>⚡</span>
-                                        <h3 style={{ fontSize: '13px', fontWeight: 700, color: S.textPrimary }}>Notification Triggers</h3>
-                                    </div>
+                                    <div style={{ fontSize: 10, fontWeight: 800, color: 'var(--fog)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 16 }}>⚡ Notification Triggers</div>
                                     {[
                                         { label: 'New lead captured', desc: 'When a new person messages your WhatsApp', active: true },
                                         { label: 'Hot lead detected', desc: 'Coming soon — when AI scores a lead as high intent', active: false },
                                         { label: 'Follow-up due', desc: 'Coming soon — when a lead needs follow-up', active: false },
                                     ].map((item, i) => (
-                                        <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 0', borderBottom: i < 2 ? `1px solid ${S.border}` : 'none' }}>
+                                        <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 0', borderBottom: i < 2 ? '1px solid var(--ice)' : 'none' }}>
                                             <div>
-                                                <div style={{ fontSize: '13px', color: S.textPrimary, fontWeight: 500 }}>{item.label}</div>
-                                                <div style={{ fontSize: '11px', color: S.textMuted, marginTop: '2px' }}>{item.desc}</div>
+                                                <div style={{ fontSize: 13, color: 'var(--ink)', fontWeight: 600 }}>{item.label}</div>
+                                                <div style={{ fontSize: 11, color: 'var(--fog)', marginTop: 2 }}>{item.desc}</div>
                                             </div>
-                                            <span style={{ fontSize: '11px', fontWeight: 600, padding: '3px 10px', borderRadius: '999px', background: item.active ? 'rgba(52,211,153,0.1)' : 'rgba(92,106,126,0.1)', color: item.active ? '#34d399' : S.textMuted }}>
+                                            <span style={{ fontSize: 11, fontWeight: 700, padding: '4px 12px', borderRadius: 20, background: item.active ? 'var(--green)' : 'var(--mist)', color: item.active ? 'var(--ink)' : 'var(--fog)' }}>
                                                 {item.active ? '● Active' : 'Soon'}
                                             </span>
                                         </div>
@@ -585,16 +615,17 @@ export default function SettingsPage() {
                             </div>
                         )}
 
-                        {/* SUBSCRIPTION TAB */}
+                        {/* ── SUBSCRIPTION TAB ── */}
                         {activeTab === 'Subscription' && (
                             <div>
-                                <div style={{ ...sectionStyle, background: billingStatus?.status === 'active' ? 'linear-gradient(135deg, rgba(52,211,153,0.05), rgba(79,140,255,0.05))' : 'linear-gradient(135deg, rgba(245,158,11,0.05), rgba(239,68,68,0.03))', border: `1px solid ${billingStatus?.status === 'active' ? 'rgba(52,211,153,0.2)' : 'rgba(245,158,11,0.2)'}` }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+                                {/* Plan status */}
+                                <div style={{ ...sectionStyle, background: billingStatus?.status === 'active' ? '#f0fdf4' : 'var(--yellow)', border: `1px solid ${billingStatus?.status === 'active' ? '#bbf7d0' : 'transparent'}` }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
                                         <div>
-                                            <div style={{ fontSize: '20px', fontWeight: 700, color: S.textPrimary, marginBottom: '4px' }}>
-                                                {billingStatus?.status === 'active' ? '✨ Pro Plan' : '🕐 Free Trial'}
+                                            <div style={{ fontFamily: 'var(--font-display)', fontSize: 28, color: 'var(--ink)', letterSpacing: -0.5, lineHeight: 1, marginBottom: 4 }}>
+                                                {billingStatus?.status === 'active' ? '✨ PRO PLAN' : '⏳ FREE TRIAL'}
                                             </div>
-                                            <div style={{ fontSize: '13px', color: S.textMuted }}>
+                                            <div style={{ fontSize: 13, color: 'var(--ash)' }}>
                                                 {billingStatus?.isTrialActive
                                                     ? `${billingStatus.trialDaysRemaining} days remaining`
                                                     : billingStatus?.status === 'active'
@@ -602,72 +633,67 @@ export default function SettingsPage() {
                                                         : 'Trial has expired'}
                                             </div>
                                         </div>
-                                        <span style={{ padding: '6px 14px', borderRadius: '999px', fontSize: '12px', fontWeight: 700, color: billingStatus?.status === 'active' ? '#34d399' : '#f59e0b', background: billingStatus?.status === 'active' ? 'rgba(52,211,153,0.12)' : 'rgba(245,158,11,0.12)' }}>
+                                        <span style={{ padding: '6px 16px', borderRadius: 20, fontSize: 11, fontWeight: 800, background: billingStatus?.status === 'active' ? 'var(--green)' : 'var(--ink)', color: billingStatus?.status === 'active' ? 'var(--ink)' : '#fff', letterSpacing: '0.05em' }}>
                                             {billingStatus?.status === 'active' ? 'ACTIVE' : 'TRIAL'}
                                         </span>
                                     </div>
                                     {billingStatus?.status !== 'active' && (
-                                        <a href="/billing" style={{ display: 'block', textAlign: 'center', padding: '13px', background: `linear-gradient(135deg, ${S.accent}, #6366f1)`, borderRadius: '12px', color: 'white', fontWeight: 700, fontSize: '14px', textDecoration: 'none', boxShadow: '0 4px 20px rgba(79,140,255,0.35)' }}>
+                                        <Link href="/billing" style={{ display: 'block', textAlign: 'center', padding: 13, background: 'var(--ink)', borderRadius: 'var(--r-btn)', color: '#fff', fontWeight: 700, fontSize: 14, textDecoration: 'none', letterSpacing: -0.2 }}>
                                             Upgrade to Pro — ₹1,999/month →
-                                        </a>
+                                        </Link>
                                     )}
                                 </div>
 
                                 {billingStatus?.status === 'active' && (
                                     <div style={sectionStyle}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-                                            <span style={{ fontSize: '16px' }}>🔧</span>
-                                            <h3 style={{ fontSize: '13px', fontWeight: 700, color: S.textPrimary }}>Manage Subscription</h3>
-                                        </div>
-                                        <p style={{ fontSize: '13px', color: S.textMuted, lineHeight: 1.7 }}>
-                                            To cancel or request a refund, contact us at <span style={{ color: S.accent }}>support@ourivo.com</span>
+                                        <div style={{ fontSize: 10, fontWeight: 800, color: 'var(--fog)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 12 }}>🔧 Manage Subscription</div>
+                                        <p style={{ fontSize: 13, color: 'var(--ash)', lineHeight: 1.7 }}>
+                                            To cancel or request a refund, contact us at{' '}
+                                            <a href="mailto:support@ourivo.com" style={{ color: 'var(--ink)', fontWeight: 700, textDecoration: 'none', borderBottom: '1px solid var(--ink)' }}>
+                                                support@ourivo.com
+                                            </a>
                                         </p>
                                     </div>
                                 )}
 
                                 {/* Danger Zone */}
-                                <div style={{ ...sectionStyle, border: `1px solid rgba(239,68,68,0.2)`, background: 'rgba(239,68,68,0.03)', marginTop: '16px' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-                                        <span style={{ fontSize: '16px' }}>⚠️</span>
-                                        <h3 style={{ fontSize: '13px', fontWeight: 700, color: '#f87171' }}>Danger Zone</h3>
-                                    </div>
-                                    <p style={{ fontSize: '13px', color: S.textMuted, lineHeight: 1.7, marginBottom: '16px' }}>
-                                        Permanently delete your account and all data. This cannot be undone. Your subscription will be cancelled immediately with no further charges.
+                                <div style={{ ...sectionStyle, background: '#fef2f2', border: '1px solid #fecaca', marginTop: 16 }}>
+                                    <div style={{ fontSize: 10, fontWeight: 800, color: '#b91c1c', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 10 }}>⚠️ Danger Zone</div>
+                                    <p style={{ fontSize: 13, color: 'var(--ash)', lineHeight: 1.7, marginBottom: 16 }}>
+                                        Permanently delete your account and all data. Cannot be undone. Subscription cancelled immediately — no further charges.
                                     </p>
-                                    <button onClick={() => setShowDeleteAccount(true)} style={{ padding: '10px 20px', background: 'transparent', border: '1px solid rgba(239,68,68,0.4)', borderRadius: '8px', color: '#f87171', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-family)', transition: 'all 180ms ease' }}
-                                        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.08)'; e.currentTarget.style.borderColor = '#ef4444'; }}
-                                        onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'rgba(239,68,68,0.4)'; }}>
+                                    <button onClick={() => setShowDeleteAccount(true)}
+                                        style={{ padding: '10px 20px', background: 'transparent', border: '1.5px solid #fecaca', borderRadius: 'var(--r-btn)', color: '#b91c1c', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-inter)', transition: 'all 0.18s' }}
+                                        onMouseEnter={e => { e.currentTarget.style.background = '#fee2e2'; e.currentTarget.style.borderColor = '#ef4444'; }}
+                                        onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = '#fecaca'; }}>
                                         Delete Account
                                     </button>
                                 </div>
                             </div>
                         )}
                     </div>
-                </div>
-            </div>
 
-            {/* Mini Footer */}
-            <div style={{ borderTop: `1px solid ${S.border}`, padding: '16px 32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginTop: 'auto' }}>
-                <span style={{ fontSize: '12px', color: S.textMuted }}>© 2026 Ourivo</span>
-                <div style={{ display: 'flex', gap: '20px' }}>
-                    {[['Help', '/help'], ['Feedback', '/feedback'], ['Contact', '/contact'], ['Privacy', '/privacy'], ['Terms', '/terms']].map(([label, href]) => (
-                        <Link key={href} href={href} style={{ fontSize: '12px', color: S.textMuted, textDecoration: 'none' }}
-                            onMouseEnter={e => e.currentTarget.style.color = S.textSecondary}
-                            onMouseLeave={e => e.currentTarget.style.color = S.textMuted}>
-                            {label}
-                        </Link>
-                    ))}
-                </div>
+                    {/* Mini footer */}
+                    <div style={{ borderTop: '1px solid var(--ice)', marginTop: 48, paddingTop: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+                        <span style={{ fontSize: 12, color: 'var(--fog)' }}>© 2025 Ourivo</span>
+                        <div style={{ display: 'flex', gap: 20 }}>
+                            {[['Help', '/help'], ['Feedback', '/feedback'], ['Contact', '/contact'], ['Privacy', '/privacy'], ['Terms', '/terms']].map(([label, href]) => (
+                                <Link key={href} href={href} style={{ fontSize: 12, color: 'var(--fog)', textDecoration: 'none', transition: 'color 0.15s' }}
+                                    onMouseEnter={e => e.currentTarget.style.color = 'var(--ink)'}
+                                    onMouseLeave={e => e.currentTarget.style.color = 'var(--fog)'}>
+                                    {label}
+                                </Link>
+                            ))}
+                        </div>
+                    </div>
+                </main>
             </div>
 
             <style>{`
                 @keyframes spin { to { transform: rotate(360deg); } }
-                @keyframes fadeSlideIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
-                @keyframes slideIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
-                @keyframes slideOut { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(-20px); } }
-                input::placeholder { color: #5C6A7E; }
-                textarea::placeholder { color: #5C6A7E; }
-                select option { background: #161A22; color: #F5F7FA; }
+                input::placeholder { color: var(--fog); }
+                textarea::placeholder { color: var(--fog); }
+                select option { background: #fff; color: var(--ink); }
             `}</style>
         </div>
     );
