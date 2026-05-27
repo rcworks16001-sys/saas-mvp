@@ -2,34 +2,117 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-
-const S = {
-    bg: '#0F1115', surface: '#161A22', surface2: '#1C2130',
-    accent: '#4F8CFF', border: '#2A3142',
-    textPrimary: '#F5F7FA', textSecondary: '#9AA4B2', textMuted: '#5C6A7E',
-};
+import Image from 'next/image';
 
 const Navbar = () => (
-    <nav style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 48px', height: '64px', background: 'rgba(22,26,34,0.9)', borderBottom: `1px solid ${S.border}`, position: 'sticky', top: 0, zIndex: 100, backdropFilter: 'blur(12px)' }}>
-        <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none' }}>
-            <img src="/logo.png" alt="Ourivo" style={{ width: '40px', height: '40px', objectFit: 'contain' }} />
-            <span style={{ fontWeight: 800, fontSize: '20px', fontFamily: 'Georgia, serif' }}>
-                <span style={{ color: S.textPrimary }}>Our</span><span style={{ color: S.accent }}>ivo</span>
+    <nav
+        style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '0 48px',
+            height: '64px',
+            background: 'var(--white)',
+            borderBottom: '1px solid #e8ecf4',
+            position: 'sticky',
+            top: 0,
+            zIndex: 100,
+        }}
+    >
+        <Link
+            href="/"
+            style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                textDecoration: 'none',
+            }}
+        >
+            <Image
+                src="/logo.png"
+                alt="Ourivo"
+                width={34}
+                height={34}
+                style={{ borderRadius: 8 }}
+            />
+            <span
+                style={{
+                    fontFamily: 'var(--font-display)',
+                    fontSize: 22,
+                    color: 'var(--ink)',
+                    letterSpacing: 1.5,
+                }}
+            >
+                OURIVO
             </span>
         </Link>
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-            <Link href="/login" style={{ padding: '7px 18px', background: 'transparent', border: `1px solid ${S.border}`, borderRadius: '8px', color: S.textSecondary, fontSize: '13px', fontWeight: 500, textDecoration: 'none' }}>Sign in</Link>
-            <Link href="/register" style={{ padding: '7px 18px', background: S.accent, border: 'none', borderRadius: '8px', color: 'white', fontSize: '13px', fontWeight: 700, textDecoration: 'none' }}>Start Free Trial</Link>
+            <Link
+                href="/login"
+                style={{
+                    padding: '7px 18px',
+                    background: 'transparent',
+                    border: '1px solid #e8ecf4',
+                    borderRadius: 'var(--r-btn)',
+                    color: 'var(--ash)',
+                    fontSize: '13px',
+                    fontWeight: 500,
+                    textDecoration: 'none',
+                }}
+            >
+                Sign in
+            </Link>
+            <Link
+                href="/register"
+                style={{
+                    padding: '9px 20px',
+                    background: 'var(--ink)',
+                    borderRadius: 'var(--r-btn)',
+                    color: 'var(--white)',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    textDecoration: 'none',
+                    border: '1px solid var(--ink)',
+                }}
+            >
+                Start Free Trial
+            </Link>
         </div>
     </nav>
 );
 
 const Footer = () => (
-    <div style={{ borderTop: `1px solid ${S.border}`, padding: '24px 48px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{ fontSize: '13px', color: S.textMuted }}>© 2026 Ourivo. All rights reserved.</span>
+    <div
+        style={{
+            borderTop: '1px solid #e8ecf4',
+            padding: '24px 48px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            background: 'var(--white)',
+        }}
+    >
+        <span style={{ fontSize: '13px', color: 'var(--fog)' }}>
+            © 2026 Ourivo. All rights reserved.
+        </span>
         <div style={{ display: 'flex', gap: '20px' }}>
-            {[['About', '/about'], ['Privacy', '/privacy'], ['Terms', '/terms'], ['Contact', '/contact']].map(([label, href]) => (
-                <Link key={href} href={href} style={{ fontSize: '13px', color: S.textMuted, textDecoration: 'none' }}>{label}</Link>
+            {[
+                ['About', '/about'],
+                ['Privacy', '/privacy'],
+                ['Terms', '/terms'],
+                ['Contact', '/contact'],
+            ].map(([label, href]) => (
+                <Link
+                    key={href}
+                    href={href}
+                    style={{
+                        fontSize: '13px',
+                        color: 'var(--ash)',
+                        textDecoration: 'none',
+                    }}
+                >
+                    {label}
+                </Link>
             ))}
         </div>
     </div>
@@ -114,31 +197,88 @@ export default function HelpPage() {
     const [openItem, setOpenItem] = useState(null);
 
     return (
-        <div style={{ minHeight: '100vh', background: S.bg, fontFamily: 'var(--font-family)', color: S.textPrimary }}>
+        <div
+            style={{
+                minHeight: '100vh',
+                background: 'var(--ice)',
+                fontFamily: 'var(--font-body)',
+                color: 'var(--ink)',
+            }}
+        >
             <Navbar />
 
-            <div style={{ maxWidth: '720px', margin: '0 auto', padding: '80px 48px' }}>
+            <div
+                style={{
+                    maxWidth: '720px',
+                    margin: '0 auto',
+                    padding: '80px 48px',
+                }}
+            >
 
                 {/* Label */}
                 <div style={{ marginBottom: '32px' }}>
-                    <span style={{ fontSize: '13px', fontWeight: 700, color: S.accent, letterSpacing: '0.12em', textTransform: 'uppercase', borderBottom: `2px solid ${S.accent}`, paddingBottom: '4px' }}>
+                    <span
+                        style={{
+                            fontSize: '13px',
+                            fontWeight: 700,
+                            color: 'var(--ash)',
+                            letterSpacing: '0.12em',
+                            textTransform: 'uppercase',
+                            borderBottom: '2px solid var(--ash)',
+                            paddingBottom: '4px',
+                        }}
+                    >
                         Help Center
                     </span>
                 </div>
 
-                <h1 style={{ fontSize: '48px', fontWeight: 800, color: S.textPrimary, letterSpacing: '-0.03em', lineHeight: 1.15, marginBottom: '16px', fontFamily: 'Georgia, serif' }}>
+                <h1
+                    style={{
+                        fontSize: '48px',
+                        fontWeight: 500,
+                        color: 'var(--ink)',
+                        letterSpacing: '0.06em',
+                        lineHeight: 1.05,
+                        marginBottom: '16px',
+                        fontFamily: 'var(--font-display)',
+                        textTransform: 'uppercase',
+                    }}
+                >
                     How can we help?
                 </h1>
-                <p style={{ fontSize: '16px', color: S.textSecondary, lineHeight: 1.9, marginBottom: '72px' }}>
+                <p
+                    style={{
+                        fontSize: '16px',
+                        color: 'var(--ash)',
+                        lineHeight: 1.8,
+                        marginBottom: '72px',
+                    }}
+                >
                     Find answers to common questions below. If you can't find what you're looking for, we're just a message away.
                 </p>
 
-                <div style={{ height: '1px', background: S.border, marginBottom: '72px' }} />
+                <div
+                    style={{
+                        height: '1px',
+                        background: '#e8ecf4',
+                        marginBottom: '72px',
+                    }}
+                />
 
                 {/* FAQs */}
                 {FAQS.map((section, si) => (
                     <div key={si} style={{ marginBottom: '64px' }}>
-                        <h2 style={{ fontSize: '13px', fontWeight: 700, color: S.accent, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: '24px' }}>
+                        <h2
+                            style={{
+                                fontSize: '13px',
+                                fontWeight: 700,
+                                color: 'var(--ash)',
+                                letterSpacing: '0.12em',
+                                textTransform: 'uppercase',
+                                marginBottom: '24px',
+                                fontFamily: 'var(--font-display)',
+                            }}
+                        >
                             {section.category}
                         </h2>
                         <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -146,15 +286,60 @@ export default function HelpPage() {
                                 const key = `${si}-${ii}`;
                                 const isOpen = openItem === key;
                                 return (
-                                    <div key={ii} style={{ borderBottom: `1px solid ${S.border}` }}>
-                                        <button onClick={() => setOpenItem(isOpen ? null : key)} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 0', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-family)', textAlign: 'left', gap: '16px' }}>
-                                            <span style={{ fontSize: '15px', fontWeight: 600, color: isOpen ? S.accent : S.textPrimary, transition: 'color 180ms ease', lineHeight: 1.5 }}>
+                                    <div
+                                        key={ii}
+                                        style={{
+                                            borderBottom: '1px solid #e8ecf4',
+                                        }}
+                                    >
+                                        <button
+                                            onClick={() =>
+                                                setOpenItem(isOpen ? null : key)
+                                            }
+                                            style={{
+                                                width: '100%',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'space-between',
+                                                padding: '20px 0',
+                                                background: 'none',
+                                                border: 'none',
+                                                cursor: 'pointer',
+                                                fontFamily: 'var(--font-body)',
+                                                textAlign: 'left',
+                                                gap: '16px',
+                                            }}
+                                        >
+                                            <span
+                                                style={{
+                                                    fontSize: '15px',
+                                                    fontWeight: 600,
+                                                    color: 'var(--ink)',
+                                                    lineHeight: 1.5,
+                                                }}
+                                            >
                                                 {item.q}
                                             </span>
-                                            <span style={{ fontSize: '20px', color: S.textMuted, flexShrink: 0, transition: 'transform 180ms ease', transform: isOpen ? 'rotate(45deg)' : 'rotate(0deg)', display: 'inline-block' }}>+</span>
+                                            <span
+                                                style={{
+                                                    fontSize: '20px',
+                                                    color: 'var(--fog)',
+                                                    flexShrink: 0,
+                                                    display: 'inline-block',
+                                                }}
+                                            >
+                                                {isOpen ? '−' : '+'}
+                                            </span>
                                         </button>
                                         {isOpen && (
-                                            <div style={{ paddingBottom: '20px', fontSize: '15px', color: S.textSecondary, lineHeight: 1.9 }}>
+                                            <div
+                                                style={{
+                                                    paddingBottom: '20px',
+                                                    fontSize: '15px',
+                                                    color: 'var(--ash)',
+                                                    lineHeight: 1.9,
+                                                }}
+                                            >
                                                 {item.a}
                                             </div>
                                         )}
@@ -165,31 +350,131 @@ export default function HelpPage() {
                     </div>
                 ))}
 
-                <div style={{ height: '1px', background: S.border, marginBottom: '72px' }} />
+                <div
+                    style={{
+                        height: '1px',
+                        background: '#e8ecf4',
+                        marginBottom: '72px',
+                    }}
+                />
 
                 {/* Still need help */}
                 <div>
-                    <h2 style={{ fontSize: '13px', fontWeight: 700, color: S.accent, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: '24px' }}>
+                    <h2
+                        style={{
+                            fontSize: '13px',
+                            fontWeight: 700,
+                            color: 'var(--ash)',
+                            letterSpacing: '0.12em',
+                            textTransform: 'uppercase',
+                            marginBottom: '24px',
+                            fontFamily: 'var(--font-display)',
+                        }}
+                    >
                         Still need help?
                     </h2>
                     <div style={{ display: 'flex', gap: '16px' }}>
-                        <Link href="/contact" style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '16px', padding: '24px', background: S.surface, border: `1px solid ${S.border}`, borderRadius: '16px', textDecoration: 'none', transition: 'all 180ms ease' }}
-                            onMouseEnter={e => { e.currentTarget.style.borderColor = S.accent; }}
-                            onMouseLeave={e => { e.currentTarget.style.borderColor = S.border; }}>
-                            <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'rgba(79,140,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px', flexShrink: 0 }}>✉️</div>
+                        <Link
+                            href="/contact"
+                            style={{
+                                flex: 1,
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '16px',
+                                padding: '20px',
+                                background: 'var(--white)',
+                                border: '1px solid #e8ecf4',
+                                borderRadius: 'var(--r-card)',
+                                textDecoration: 'none',
+                            }}
+                        >
+                            <div
+                                style={{
+                                    width: '44px',
+                                    height: '44px',
+                                    borderRadius: '12px',
+                                    background: 'var(--mist)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    fontSize: '22px',
+                                    flexShrink: 0,
+                                }}
+                            >
+                                ✉️
+                            </div>
                             <div>
-                                <div style={{ fontSize: '14px', fontWeight: 700, color: S.textPrimary, marginBottom: '4px' }}>Contact Us</div>
-                                <div style={{ fontSize: '13px', color: S.textMuted }}>Send us a message</div>
+                                <div
+                                    style={{
+                                        fontSize: '14px',
+                                        fontWeight: 600,
+                                        color: 'var(--ink)',
+                                        marginBottom: '4px',
+                                    }}
+                                >
+                                    Contact Us
+                                </div>
+                                <div
+                                    style={{
+                                        fontSize: '13px',
+                                        color: 'var(--fog)',
+                                    }}
+                                >
+                                    Send us a message
+                                </div>
                             </div>
                         </Link>
 
-                        <a href="https://wa.me/917294034023" target="_blank" rel="noopener noreferrer" style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '16px', padding: '24px', background: S.surface, border: `1px solid ${S.border}`, borderRadius: '16px', textDecoration: 'none', transition: 'all 180ms ease' }}
-                            onMouseEnter={e => { e.currentTarget.style.borderColor = '#25d366'; }}
-                            onMouseLeave={e => { e.currentTarget.style.borderColor = S.border; }}>
-                            <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'rgba(37,211,102,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px', flexShrink: 0 }}>💬</div>
+                        <a
+                            href="https://wa.me/917294034023"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{
+                                flex: 1,
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '16px',
+                                padding: '20px',
+                                background: 'var(--white)',
+                                border: '1px solid #e8ecf4',
+                                borderRadius: 'var(--r-card)',
+                                textDecoration: 'none',
+                            }}
+                        >
+                            <div
+                                style={{
+                                    width: '44px',
+                                    height: '44px',
+                                    borderRadius: '12px',
+                                    background: 'var(--mist)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    fontSize: '22px',
+                                    flexShrink: 0,
+                                }}
+                            >
+                                💬
+                            </div>
                             <div>
-                                <div style={{ fontSize: '14px', fontWeight: 700, color: S.textPrimary, marginBottom: '4px' }}>WhatsApp</div>
-                                <div style={{ fontSize: '13px', color: S.textMuted }}>Chat with us directly</div>
+                                <div
+                                    style={{
+                                        fontSize: '14px',
+                                        fontWeight: 600,
+                                        color: 'var(--ink)',
+                                        marginBottom: '4px',
+                                    }}
+                                >
+                                    WhatsApp
+                                </div>
+                                <div
+                                    style={{
+                                        fontSize: '13px',
+                                        color: 'var(--fog)',
+                                    }}
+                                >
+                                    Chat with us directly
+                                </div>
                             </div>
                         </a>
                     </div>
