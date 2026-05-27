@@ -3,15 +3,10 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import Cookies from 'js-cookie';
 import toast from 'react-hot-toast';
 import api from '../../../lib/api';
-
-const S = {
-    bg: '#0F1115', surface: '#161A22', surface2: '#1C2130',
-    accent: '#4F8CFF', border: '#2A3142',
-    textPrimary: '#F5F7FA', textSecondary: '#9AA4B2', textMuted: '#5C6A7E',
-};
 
 const DEFAULT_SEQUENCES = [
     { day: 1, enabled: true, message: "Hi {name}! Just checking in — are you still looking for a property in {area}? We have some great options available." },
@@ -20,6 +15,19 @@ const DEFAULT_SEQUENCES = [
 ];
 
 const VARIABLES = ['{name}', '{area}', '{budget}', '{bhk}'];
+
+const inputStyle = {
+    width: '100%', padding: '11px 14px',
+    background: 'var(--mist)', border: '1.5px solid var(--ice)',
+    borderRadius: 'var(--r-btn)', color: 'var(--ink)', fontSize: '14px',
+    fontFamily: 'var(--font-inter)', outline: 'none',
+    transition: 'all 0.18s', boxSizing: 'border-box',
+};
+
+const focusHandlers = {
+    onFocus: e => { e.target.style.border = '1.5px solid var(--ink)'; e.target.style.background = '#fff'; },
+    onBlur: e => { e.target.style.border = '1.5px solid var(--ice)'; e.target.style.background = 'var(--mist)'; },
+};
 
 export default function FollowupsPage() {
     const router = useRouter();
@@ -39,7 +47,7 @@ export default function FollowupsPage() {
             const response = await api.get('/followup/settings');
             setIsEnabled(response.data.is_enabled);
             setSequences(response.data.sequences || DEFAULT_SEQUENCES);
-        } catch (error) {
+        } catch {
             toast.error('Failed to load follow-up settings');
         } finally {
             setLoading(false);
@@ -49,12 +57,9 @@ export default function FollowupsPage() {
     const handleSave = async () => {
         setSaving(true);
         try {
-            await api.put('/followup/settings', {
-                is_enabled: isEnabled,
-                sequences
-            });
+            await api.put('/followup/settings', { is_enabled: isEnabled, sequences });
             toast.success('Follow-up settings saved');
-        } catch (error) {
+        } catch {
             toast.error('Failed to save settings');
         } finally {
             setSaving(false);
@@ -64,7 +69,7 @@ export default function FollowupsPage() {
     const resetToDefault = () => {
         setSequences(DEFAULT_SEQUENCES);
         setIsEnabled(true);
-        toast.success('Reset to default settings');
+        toast.success('Reset to defaults');
     };
 
     const updateSequence = (index, field, value) => {
@@ -73,193 +78,186 @@ export default function FollowupsPage() {
         setSequences(updated);
     };
 
-    const inputStyle = {
-        width: '100%', padding: '10px 14px',
-        background: S.surface2, border: `1.5px solid ${S.border}`,
-        borderRadius: '10px', color: S.textPrimary, fontSize: '14px',
-        fontFamily: 'var(--font-family)', outline: 'none',
-        transition: 'all 180ms ease', boxSizing: 'border-box',
-    };
-
-    const focusHandlers = {
-        onFocus: e => { e.target.style.border = `1.5px solid ${S.accent}`; e.target.style.boxShadow = `0 0 0 3px rgba(79,140,255,0.12)`; },
-        onBlur: e => { e.target.style.border = `1.5px solid ${S.border}`; e.target.style.boxShadow = 'none'; }
-    };
-
     if (loading) {
         return (
-            <div style={{ minHeight: '100vh', background: S.bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <div style={{ width: '24px', height: '24px', border: `2px solid ${S.border}`, borderTopColor: S.accent, borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+            <div style={{ minHeight: '100vh', background: 'var(--ice)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ textAlign: 'center' }}>
+                    <div style={{ width: 24, height: 24, border: '2px solid var(--ice)', borderTopColor: 'var(--ink)', borderRadius: '50%', animation: 'spin 0.7s linear infinite', margin: '0 auto 12px' }} />
+                    <div style={{ fontFamily: 'var(--font-display)', fontSize: 16, color: 'var(--fog)', letterSpacing: 1 }}>LOADING...</div>
+                </div>
                 <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
             </div>
         );
     }
 
     return (
-        <div style={{ minHeight: '100vh', background: S.bg, fontFamily: 'var(--font-family)', color: S.textPrimary }}>
+        <div style={{ minHeight: '100vh', background: 'var(--ice)', fontFamily: 'var(--font-inter)', color: 'var(--ink)' }}>
 
-            {/* Navbar */}
-            <nav style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 32px', height: '58px', background: S.surface, borderBottom: `1px solid ${S.border}`, position: 'sticky', top: 0, zIndex: 100 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <img src="/logo.png" alt="Ourivo" style={{ width: '36px', height: '36px', objectFit: 'contain' }} />
-                    <span style={{ fontWeight: 800, fontSize: '16px', fontFamily: 'Georgia, serif' }}>
-                        <span style={{ color: S.textPrimary }}>Our</span><span style={{ color: S.accent }}>ivo</span>
-                    </span>
-                </div>
-                <Link href="/dashboard" style={{ padding: '6px 14px', background: 'transparent', border: `1px solid ${S.border}`, borderRadius: '8px', color: S.textSecondary, fontSize: '13px', fontWeight: 500, textDecoration: 'none' }}>
+            {/* ── Navbar ── */}
+            <nav style={{
+                position: 'sticky', top: 0, zIndex: 100,
+                height: 62, display: 'flex', alignItems: 'center',
+                justifyContent: 'space-between', padding: '0 32px',
+                background: '#fff', borderBottom: '1px solid #e8ecf4',
+            }}>
+                <Link href="/dashboard" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
+                    <Image src="/logo.png" alt="Ourivo" width={34} height={34} style={{ borderRadius: 8 }} />
+                    <span style={{ fontFamily: 'var(--font-display)', fontSize: 22, color: 'var(--ink)', letterSpacing: 1.5 }}>OURIVO</span>
+                </Link>
+                <Link href="/dashboard"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 'var(--r-btn)', border: '1.5px solid var(--ice)', color: 'var(--ash)', fontSize: 13, fontWeight: 600, textDecoration: 'none', transition: 'all 0.18s' }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--ink)'; e.currentTarget.style.color = 'var(--ink)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--ice)'; e.currentTarget.style.color = 'var(--ash)'; }}>
                     ← Back to Dashboard
                 </Link>
             </nav>
 
-            <div style={{ padding: '32px 40px', maxWidth: '760px', margin: '0 auto' }}>
+            {/* ── Content ── */}
+            <div style={{ padding: '32px 40px', maxWidth: 760, margin: '0 auto' }}>
 
                 {/* Header */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '28px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: 'linear-gradient(135deg, rgba(79,140,255,0.2), rgba(99,102,241,0.15))', border: `1px solid rgba(79,140,255,0.2)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }}>
-                            🔄
-                        </div>
-                        <div>
-                            <h1 style={{ fontSize: '22px', fontWeight: 700, color: S.textPrimary, letterSpacing: '-0.02em' }}>Follow-up Automation</h1>
-                            <p style={{ color: S.textMuted, fontSize: '13px', marginTop: '2px' }}>Auto-send WhatsApp messages to silent leads</p>
-                        </div>
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 28 }}>
+                    <div>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--fog)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 8 }}>Automation</div>
+                        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 42, color: 'var(--ink)', letterSpacing: -1, lineHeight: 0.92, marginBottom: 6 }}>
+                            FOLLOW-UPS.
+                        </h1>
+                        <p style={{ fontSize: 13, color: 'var(--ash)' }}>Auto-send WhatsApp messages to leads that go silent</p>
                     </div>
-                    <button onClick={resetToDefault} style={{ padding: '8px 16px', background: 'transparent', border: `1px solid ${S.border}`, borderRadius: '8px', color: S.textMuted, fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-family)', transition: 'all 180ms ease' }}
-                        onMouseEnter={e => { e.currentTarget.style.borderColor = S.accent; e.currentTarget.style.color = S.accent; }}
-                        onMouseLeave={e => { e.currentTarget.style.borderColor = S.border; e.currentTarget.style.color = S.textMuted; }}>
+                    <button onClick={resetToDefault}
+                        style={{ padding: '9px 16px', background: 'transparent', border: '1.5px solid var(--ice)', borderRadius: 'var(--r-btn)', color: 'var(--ash)', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-inter)', transition: 'all 0.18s', marginTop: 8 }}
+                        onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--ink)'; e.currentTarget.style.color = 'var(--ink)'; }}
+                        onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--ice)'; e.currentTarget.style.color = 'var(--ash)'; }}>
                         ↺ Reset to Default
                     </button>
                 </div>
 
                 {/* Master toggle */}
-                <div style={{ background: S.surface, border: `1px solid ${S.border}`, borderRadius: '16px', padding: '20px 24px', marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ background: '#fff', border: '1px solid #e8ecf4', borderRadius: 20, padding: '20px 24px', marginBottom: 14, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <div>
-                        <div style={{ fontSize: '15px', fontWeight: 700, color: S.textPrimary, marginBottom: '4px' }}>
-                            🔄 Follow-up Automation
-                        </div>
-                        <div style={{ fontSize: '12px', color: S.textMuted, lineHeight: 1.6 }}>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)', marginBottom: 4 }}>🔄 Follow-up Automation</div>
+                        <div style={{ fontSize: 12, color: 'var(--fog)', lineHeight: 1.6, maxWidth: 480 }}>
                             When enabled, your chatbot automatically follows up with leads that go silent.
                         </div>
                     </div>
-                    <div onClick={() => setIsEnabled(!isEnabled)} style={{ width: '52px', height: '28px', background: isEnabled ? `linear-gradient(135deg, ${S.accent}, #6366f1)` : S.border, borderRadius: '999px', cursor: 'pointer', position: 'relative', transition: 'all 250ms ease', boxShadow: isEnabled ? '0 2px 12px rgba(79,140,255,0.4)' : 'none', flexShrink: 0 }}>
-                        <div style={{ position: 'absolute', top: '4px', left: isEnabled ? '26px' : '4px', width: '20px', height: '20px', background: 'white', borderRadius: '50%', transition: 'all 250ms cubic-bezier(0.4, 0, 0.2, 1)', boxShadow: '0 1px 4px rgba(0,0,0,0.3)' }} />
+                    <div onClick={() => setIsEnabled(!isEnabled)}
+                        style={{ width: 50, height: 26, background: isEnabled ? 'var(--ink)' : 'var(--ice)', borderRadius: 999, cursor: 'pointer', position: 'relative', transition: 'background 0.25s', flexShrink: 0 }}>
+                        <div style={{ position: 'absolute', top: 3, left: isEnabled ? 26 : 3, width: 20, height: 20, background: '#fff', borderRadius: '50%', transition: 'left 0.25s cubic-bezier(0.4,0,0.2,1)', boxShadow: '0 1px 4px rgba(0,0,0,0.2)' }} />
                     </div>
                 </div>
 
                 {/* How it works */}
-                <div style={{ background: 'rgba(79,140,255,0.05)', border: `1px solid rgba(79,140,255,0.15)`, borderRadius: '12px', padding: '16px 20px', marginBottom: '24px' }}>
-                    <div style={{ fontSize: '12px', fontWeight: 700, color: S.accent, marginBottom: '10px' }}>💡 How it works</div>
-                    <div style={{ fontSize: '12px', color: S.textSecondary, lineHeight: 1.8 }}>
-                        When a lead stops responding, your bot automatically sends follow-up messages at the intervals you set below.
-                        Use <code style={{ color: S.accent, background: 'rgba(79,140,255,0.1)', padding: '1px 6px', borderRadius: '4px' }}>{'{name}'}</code>,
-                        <code style={{ color: S.accent, background: 'rgba(79,140,255,0.1)', padding: '1px 6px', borderRadius: '4px', margin: '0 4px' }}>{'{area}'}</code>,
-                        <code style={{ color: S.accent, background: 'rgba(79,140,255,0.1)', padding: '1px 6px', borderRadius: '4px', margin: '0 4px' }}>{'{budget}'}</code>,
-                        <code style={{ color: S.accent, background: 'rgba(79,140,255,0.1)', padding: '1px 6px', borderRadius: '4px' }}>{'{bhk}'}</code> to personalize messages with lead details.
+                <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 14, padding: '14px 18px', marginBottom: 24 }}>
+                    <div style={{ fontSize: 11, fontWeight: 800, color: '#16a34a', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.08em' }}>💡 How it works</div>
+                    <div style={{ fontSize: 12, color: 'var(--ash)', lineHeight: 1.8 }}>
+                        When a lead stops responding, your bot sends follow-up messages at the intervals below.
+                        Use{' '}
+                        {VARIABLES.map((v, i) => (
+                            <span key={v}>
+                                <code style={{ color: 'var(--ink)', background: 'var(--green)', padding: '1px 6px', borderRadius: 4, fontFamily: 'monospace', fontSize: 11, fontWeight: 700 }}>{v}</code>
+                                {i < VARIABLES.length - 1 ? ' ' : ''}
+                            </span>
+                        ))}
+                        {' '}to personalise messages with lead details.
                     </div>
                 </div>
 
                 {/* Sequences */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '24px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 24 }}>
                     {sequences.map((seq, i) => (
-                        <div key={i} style={{ background: S.surface, border: `1px solid ${seq.enabled ? 'rgba(79,140,255,0.2)' : S.border}`, borderRadius: '16px', padding: '20px 24px', transition: 'all 200ms ease', opacity: seq.enabled ? 1 : 0.6 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                    <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: seq.enabled ? `linear-gradient(135deg, ${S.accent}, #6366f1)` : S.surface2, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: 700, color: 'white', transition: 'all 200ms ease' }}>
-                                        {seq.day}d
+                        <div key={i} style={{
+                            background: '#fff',
+                            border: `1px solid ${seq.enabled ? 'var(--ink)' : '#e8ecf4'}`,
+                            borderRadius: 20, padding: '20px 24px',
+                            transition: 'all 0.2s',
+                            opacity: seq.enabled ? 1 : 0.55,
+                        }}>
+                            {/* Row header */}
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                    <div style={{ width: 38, height: 38, borderRadius: 10, background: seq.enabled ? 'var(--ink)' : 'var(--mist)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-display)', fontSize: 16, color: seq.enabled ? '#fff' : 'var(--fog)', transition: 'all 0.2s', letterSpacing: 0.5 }}>
+                                        {seq.day}D
                                     </div>
                                     <div>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                            <span style={{ fontSize: '13px', color: S.textSecondary, fontWeight: 500 }}>
-                                                Send after
-                                            </span>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                            <span style={{ fontSize: 13, color: 'var(--ash)', fontWeight: 500 }}>Send after</span>
                                             <input
-                                                type="number"
-                                                min="1"
-                                                max="30"
+                                                type="number" min="1" max="30"
                                                 value={seq.day}
                                                 onChange={e => updateSequence(i, 'day', parseInt(e.target.value) || 1)}
-                                                style={{
-                                                    width: '60px', padding: '4px 8px',
-                                                    background: S.surface2,
-                                                    border: `1.5px solid ${S.border}`,
-                                                    borderRadius: '8px',
-                                                    color: S.textPrimary, fontSize: '14px',
-                                                    fontWeight: 700, fontFamily: 'var(--font-family)',
-                                                    outline: 'none', textAlign: 'center'
-                                                }}
+                                                style={{ width: 60, padding: '4px 8px', background: 'var(--mist)', border: '1.5px solid var(--ice)', borderRadius: 8, color: 'var(--ink)', fontSize: 14, fontWeight: 700, fontFamily: 'var(--font-inter)', outline: 'none', textAlign: 'center' }}
+                                                onFocus={e => { e.target.style.border = '1.5px solid var(--ink)'; e.target.style.background = '#fff'; }}
+                                                onBlur={e => { e.target.style.border = '1.5px solid var(--ice)'; e.target.style.background = 'var(--mist)'; }}
                                             />
-                                            <span style={{ fontSize: '13px', color: S.textSecondary, fontWeight: 500 }}>
-                                                days of silence
-                                            </span>
+                                            <span style={{ fontSize: 13, color: 'var(--ash)', fontWeight: 500 }}>days of silence</span>
                                         </div>
-                                        <div style={{ fontSize: '11px', color: S.textMuted, marginTop: '4px' }}>
-                                            = {(seq.day * 24)} hours after last message
-                                        </div>
+                                        <div style={{ fontSize: 11, color: 'var(--fog)', marginTop: 3 }}>{seq.day * 24} hours after last message</div>
                                     </div>
                                 </div>
-                                <div onClick={() => updateSequence(i, 'enabled', !seq.enabled)} style={{ width: '44px', height: '24px', background: seq.enabled ? `linear-gradient(135deg, ${S.accent}, #6366f1)` : S.border, borderRadius: '999px', cursor: 'pointer', position: 'relative', transition: 'all 250ms ease' }}>
-                                    <div style={{ position: 'absolute', top: '3px', left: seq.enabled ? '22px' : '3px', width: '18px', height: '18px', background: 'white', borderRadius: '50%', transition: 'all 250ms cubic-bezier(0.4, 0, 0.2, 1)', boxShadow: '0 1px 4px rgba(0,0,0,0.3)' }} />
+
+                                {/* Toggle */}
+                                <div onClick={() => updateSequence(i, 'enabled', !seq.enabled)}
+                                    style={{ width: 44, height: 24, background: seq.enabled ? 'var(--ink)' : 'var(--ice)', borderRadius: 999, cursor: 'pointer', position: 'relative', transition: 'background 0.25s', flexShrink: 0 }}>
+                                    <div style={{ position: 'absolute', top: 3, left: seq.enabled ? 22 : 3, width: 18, height: 18, background: '#fff', borderRadius: '50%', transition: 'left 0.25s cubic-bezier(0.4,0,0.2,1)', boxShadow: '0 1px 4px rgba(0,0,0,0.2)' }} />
                                 </div>
                             </div>
 
+                            {/* Message textarea */}
                             <div>
-                                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: S.textSecondary, marginBottom: '8px' }}>Message</label>
+                                <label style={{ display: 'block', fontSize: 10, fontWeight: 800, color: 'var(--fog)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Message</label>
                                 <textarea
                                     value={seq.message}
                                     onChange={e => updateSequence(i, 'message', e.target.value)}
                                     rows={3}
                                     disabled={!seq.enabled}
-                                    style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.6, opacity: seq.enabled ? 1 : 0.5, cursor: seq.enabled ? 'text' : 'not-allowed' }}
-                                    {...focusHandlers}
+                                    style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.65, opacity: seq.enabled ? 1 : 0.5, cursor: seq.enabled ? 'text' : 'not-allowed' }}
+                                    onFocus={e => { if (seq.enabled) { e.target.style.border = '1.5px solid var(--ink)'; e.target.style.background = '#fff'; } }}
+                                    onBlur={e => { e.target.style.border = '1.5px solid var(--ice)'; e.target.style.background = 'var(--mist)'; }}
                                 />
-                                <div style={{ display: 'flex', gap: '6px', marginTop: '8px', flexWrap: 'wrap' }}>
+                                {/* Variable chips */}
+                                <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                                     {VARIABLES.map(v => (
-                                        <span key={v} style={{ fontSize: '11px', padding: '2px 8px', background: 'rgba(79,140,255,0.08)', border: `1px solid rgba(79,140,255,0.15)`, borderRadius: '4px', color: S.accent, cursor: 'pointer' }}
-                                            onClick={() => {
-                                                if (seq.enabled) updateSequence(i, 'message', seq.message + v);
-                                            }}>
+                                        <span key={v}
+                                            onClick={() => { if (seq.enabled) updateSequence(i, 'message', seq.message + v); }}
+                                            style={{ fontSize: 11, padding: '3px 10px', background: 'var(--green)', border: 'none', borderRadius: 20, color: 'var(--ink)', fontWeight: 700, cursor: seq.enabled ? 'pointer' : 'default', fontFamily: 'monospace', transition: 'opacity 0.15s' }}
+                                            onMouseEnter={e => { if (seq.enabled) e.currentTarget.style.opacity = '0.7'; }}
+                                            onMouseLeave={e => e.currentTarget.style.opacity = '1'}>
                                             {v}
                                         </span>
                                     ))}
-                                    <span style={{ fontSize: '11px', color: S.textMuted }}>← click to insert</span>
+                                    <span style={{ fontSize: 11, color: 'var(--fog)' }}>← click to insert</span>
                                 </div>
                             </div>
                         </div>
                     ))}
                 </div>
 
-                {/* Save button */}
-                <button onClick={handleSave} disabled={saving} style={{
-                    width: '100%', padding: '13px',
-                    background: saving ? S.surface2 : `linear-gradient(135deg, ${S.accent}, #6366f1)`,
-                    border: 'none', borderRadius: '12px',
-                    color: 'white', fontSize: '14px', fontWeight: 700,
-                    fontFamily: 'var(--font-family)',
-                    cursor: saving ? 'not-allowed' : 'pointer',
-                    transition: 'all 200ms ease',
-                    boxShadow: saving ? 'none' : `0 4px 24px rgba(79,140,255,0.35)`,
-                }}>
+                {/* Save */}
+                <button onClick={handleSave} disabled={saving}
+                    style={{ width: '100%', padding: '13px', background: saving ? 'var(--mist)' : 'var(--ink)', border: 'none', borderRadius: 'var(--r-btn)', color: saving ? 'var(--fog)' : '#fff', fontSize: 14, fontWeight: 700, fontFamily: 'var(--font-inter)', cursor: saving ? 'not-allowed' : 'pointer', transition: 'opacity 0.18s' }}
+                    onMouseEnter={e => { if (!saving) e.currentTarget.style.opacity = '0.85'; }}
+                    onMouseLeave={e => e.currentTarget.style.opacity = '1'}>
                     {saving ? '⏳ Saving...' : '✓ Save Follow-up Settings'}
                 </button>
-            </div>
 
-            {/* Mini Footer */}
-            <div style={{ borderTop: `1px solid ${S.border}`, padding: '16px 32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginTop: 'auto' }}>
-                <span style={{ fontSize: '12px', color: S.textMuted }}>© 2026 Ourivo</span>
-                <div style={{ display: 'flex', gap: '20px' }}>
-                    {[['Help', '/help'], ['Feedback', '/feedback'], ['Contact', '/contact'], ['Privacy', '/privacy'], ['Terms', '/terms']].map(([label, href]) => (
-                        <Link key={href} href={href} style={{ fontSize: '12px', color: S.textMuted, textDecoration: 'none' }}
-                            onMouseEnter={e => e.currentTarget.style.color = S.textSecondary}
-                            onMouseLeave={e => e.currentTarget.style.color = S.textMuted}>
-                            {label}
-                        </Link>
-                    ))}
+                {/* Mini footer */}
+                <div style={{ borderTop: '1px solid var(--ice)', marginTop: 48, paddingTop: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+                    <span style={{ fontSize: 12, color: 'var(--fog)' }}>© 2025 Ourivo</span>
+                    <div style={{ display: 'flex', gap: 20 }}>
+                        {[['Help', '/help'], ['Feedback', '/feedback'], ['Contact', '/contact'], ['Privacy', '/privacy'], ['Terms', '/terms']].map(([label, href]) => (
+                            <Link key={href} href={href} style={{ fontSize: 12, color: 'var(--fog)', textDecoration: 'none', transition: 'color 0.15s' }}
+                                onMouseEnter={e => e.currentTarget.style.color = 'var(--ink)'}
+                                onMouseLeave={e => e.currentTarget.style.color = 'var(--fog)'}>
+                                {label}
+                            </Link>
+                        ))}
+                    </div>
                 </div>
             </div>
 
             <style>{`
                 @keyframes spin { to { transform: rotate(360deg); } }
-                textarea::placeholder { color: #5C6A7E; }
+                textarea::placeholder { color: var(--fog); }
             `}</style>
         </div>
     );
