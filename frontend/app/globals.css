@@ -223,3 +223,116 @@ body {
   animation: shimmer 1.4s ease infinite;
   border-radius: var(--radius-sm);
 }
+
+/* ── Ourivo Design System — Dayos ── */
+:root {
+  --ice: #e5e7eb;
+  --ink: #000000;
+  --white: #ffffff;
+  --fog: #979797;
+  --ash: #444444;
+  --mist: #f3f3f3;
+  --smoke: #2f2f2f;
+  --green: #d1ffca;
+  --yellow: #fff100;
+  --r-card: 32px;
+  --r-btn: 8px;
+  --r-nav: 12px;
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.reveal {
+  opacity: 0;
+  transform: translateY(28px);
+  transition: opacity 0.7s var(--ease), transform 0.7s var(--ease);
+}
+
+.reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.reveal-d1 {
+  transition-delay: 0.08s;
+}
+
+.reveal-d2 {
+  transition-delay: 0.18s;
+}
+
+.reveal-d3 {
+  transition-delay: 0.30s;
+}
+
+.reveal-d4 {
+  transition-delay: 0.44s;
+}
+
+@keyframes marquee {
+  0% {
+    transform: translateX(0);
+  }
+
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.marquee-track {
+  display: flex;
+  animation: marquee 32s linear infinite;
+}
+
+.marquee-track:hover {
+  animation-play-state: paused;
+}
+
+@keyframes float-anim {
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.float-anim {
+  animation: float-anim 5.5s ease-in-out infinite;
+}
+
+@keyframes pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgba(0, 0, 0, 0.5);
+  }
+
+  70% {
+    box-shadow: 0 0 0 8px rgba(0, 0, 0, 0);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgba(0, 0, 0, 0);
+  }
+}
+
+.pulse-dot {
+  animation: pulse-ring 2.2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+  .reveal,
+  .marquee-track,
+  .float-anim,
+  .pulse-dot {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .reveal {
+    opacity: 1;
+    transform: none;
+  }
+}

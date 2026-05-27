@@ -1,4 +1,4 @@
-import { Inter, Playfair_Display } from 'next/font/google';
+import { Inter, Playfair_Display, Bebas_Neue } from 'next/font/google';
 import { Toaster } from 'react-hot-toast';
 import './globals.css';
 
@@ -16,14 +16,21 @@ const playfair = Playfair_Display({
   variable: '--font-playfair',
 });
 
+const bebasNeue = Bebas_Neue({
+  weight: '400',
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-display',
+});
+
 export const metadata = {
-  title: 'Ourivo — WhatsApp CRM for Real Estate',
-  description: 'Capture, qualify and follow up with every WhatsApp lead automatically. Built for real estate agents in India.',
+  title: 'Ourivo — AI Lead Capture for Real Estate',
+  description: 'Your AI bot captures and qualifies buyers on WhatsApp 24/7. Never miss a lead again.',
 };
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" className={`${inter.variable} ${playfair.variable}`}>
+    <html lang="en" className={`${inter.variable} ${playfair.variable} ${bebasNeue.variable}`}>
       <body style={{ fontFamily: 'var(--font-inter)' }}>
         <Toaster position="top-right" />
         {children}
