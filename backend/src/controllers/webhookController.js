@@ -74,13 +74,13 @@ const sendEmailNotification = async (toEmail, orgName, contactName, phone, messa
                         </div>
                     </div>
 
-                    <a href="https://saas-mvp-one.vercel.app/dashboard" 
+                    <a href="https://ourivo.com/dashboard" 
                        style="display: block; background: #4F8CFF; color: white; text-align: center; padding: 12px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px;">
                         View Lead in Dashboard →
                     </a>
 
                     <p style="color: #5C6A7E; font-size: 11px; text-align: center; margin-top: 24px;">
-                        WhatsApp CRM · You are receiving this because you have notifications enabled.
+                        Ourivo · You are receiving this because you have notifications enabled.
                     </p>
                 </div>
             `
@@ -254,7 +254,6 @@ const handleMessage = async (req, res) => {
 
         console.log(`Message from ${from}: ${messageText}`);
 
-        // Match org by WhatsApp Phone Number ID from metadata
         const incomingPhoneNumberId = value?.metadata?.phone_number_id;
         console.log(`Incoming message to phone_number_id: ${incomingPhoneNumberId}`);
 
@@ -298,6 +297,29 @@ const handleMessage = async (req, res) => {
         await saveMessage(organizationId, lead.id, response, 'bot');
         await sendWhatsAppMessage(from, response);
 
+        // Hot lead notification — check if lead just became Hot
+        const scoredLead = await pool.query('SELECT score_label FROM leads WHERE id = $1', [lead.id]);
+        const currentScoreLabel = scoredLead.rows[0]?.score_label;
+        const wasHotBefore = lead.score_label === 'hot';
+        const isNowHot = currentScoreLabel === 'hot';
+
+        if (!wasHotBefore && isNowHot) {
+            const hotNotificationMessage =
+                `🔥 Hot Lead Alert!\n\n` +
+                `👤 Name: ${contactName}\n` +
+                `📱 Phone: +${from}\n` +
+                `📊 This lead just qualified as HOT.\n\n` +
+                `View dashboard: https://ourivo.com/dashboard`;
+
+            if (ownerPhone) {
+                await sendWhatsAppMessage(ownerPhone, hotNotificationMessage);
+                console.log(`Hot lead WhatsApp alert sent to ${ownerPhone}`);
+            }
+            if (ownerEmail) {
+                await sendEmailNotification(ownerEmail, orgName, contactName, from, `🔥 Lead scored HOT — all qualifying questions answered.`);
+            }
+        }
+
         // Send notifications for NEW leads only
         if (isNew) {
             const notificationMessage =
@@ -307,13 +329,11 @@ const handleMessage = async (req, res) => {
                 `💬 Message: "${messageText}"\n\n` +
                 `View dashboard: https://ourivo.com/dashboard`;
 
-            // WhatsApp notification
             if (ownerPhone) {
                 await sendWhatsAppMessage(ownerPhone, notificationMessage);
                 console.log(`WhatsApp notification sent to ${ownerPhone}`);
             }
 
-            // Email notification
             if (ownerEmail) {
                 await sendEmailNotification(ownerEmail, orgName, contactName, from, messageText);
             }
