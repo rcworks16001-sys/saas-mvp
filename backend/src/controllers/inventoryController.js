@@ -1,0 +1,112 @@
+const pool = require('../db/index');
+const Anthropic = require('@anthropic-ai/sdk');
+require('dotenv').config();
+
+const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+// ── Parse agent message with Claude ──
+const parsePropertyMessage = async (message) => {
+    try {
+        const response = await anthropic.messages.create({
+            model: 'claude-haiku-4-5-20251001',
+            max_tokens: 500,
+            system: `You are a property listing parser for an Indian real estate business.
+Extract property details from the agent's message and return ONLY a valid JSON object.
+No explanation, no markdown, no backticks — raw JSON only.
+
+Fields to extract:
+- title (string — e.g. "3BHK Apartment Velachery")
+- location (string)
+- price (string — e.g. "45L", "1.2Cr", "45,00,000")
+- bedrooms (string — e.g. "3BHK", "2BHK", "Villa")
+- area_sqft (string — e.g. "1200")
+- furnishing (string — "furnished", "semi-furnished", "unfurnished", or null)
+- status (string — "available", "sold", "rented" — default "available")
+
+If a field is not mentioned, set it to null.`,
+            messages: [{ role: 'user', content: message }]
+        });
+
+        const raw = response.content[0].text.trim();
+        return JSON.parse(raw);
+    } catch (error) {
+        console.error('Property parse error:', error);
+        return null;
+    }
+};
+
+// ── Handle incoming agent inventory message ──
+const handleInventoryMessage = async (organizationId, agentPhone, message) => {
+    const parsed = await parsePropertyMessage(message);
+
+    if (!parsed) {
+        return `Sorry, I couldn't understand that. Try: "Add: 3BHK Velachery 45L semi-furnished 1200sqft"`;
+    }
+
+    try {
+        await pool.query(
+            `INSERT INTO properties 
+             (organization_id, title, location, price, bedrooms, area_sqft, furnishing, status, raw_message)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+            [
+                organizationId,
+                parsed.title,
+                parsed.location,
+                parsed.price,
+                parsed.bedrooms,
+                parsed.area_sqft,
+                parsed.furnishing,
+                parsed.status || 'available',
+                message
+            ]
+        );
+
+        const details = [
+            parsed.title,
+            parsed.location && `📍 ${parsed.location}`,
+            parsed.price && `💰 ${parsed.price}`,
+            parsed.bedrooms && `🛏 ${parsed.bedrooms}`,
+            parsed.area_sqft && `📐 ${parsed.area_sqft} sqft`,
+            parsed.furnishing && `🪑 ${parsed.furnishing}`
+        ].filter(Boolean).join('\n');
+
+        return `✅ Property added!\n\n${details}\n\nView all: https://ourivo.com/dashboard/inventory`;
+    } catch (error) {
+        console.error('Inventory insert error:', error);
+        return `Failed to save property. Please try again.`;
+    }
+};
+
+// ── GET /api/inventory ──
+const getProperties = async (req, res) => {
+    const { organizationId } = req.user;
+    try {
+        const result = await pool.query(
+            `SELECT * FROM properties WHERE organization_id = $1 ORDER BY created_at DESC`,
+            [organizationId]
+        );
+        res.json({ properties: result.rows, total: result.rows.length });
+    } catch (error) {
+        console.error('Get properties error:', error);
+        res.status(500).json({ error: 'Failed to fetch properties' });
+    }
+};
+
+// ── DELETE /api/inventory/:id ──
+const deleteProperty = async (req, res) => {
+    const { organizationId } = req.user;
+    const { id } = req.params;
+    try {
+        const result = await pool.query(
+            `DELETE FROM properties WHERE id = $1 AND organization_id = $2 RETURNING id`,
+            [id, organizationId]
+        );
+        if (result.rows.length === 0) return res.status(404).json({ error: 'Property not found' });
+        res.json({ message: 'Property deleted' });
+    } catch (error) {
+        console.error('Delete property error:', error);
+        res.status(500).json({ error: 'Failed to delete property' });
+    }
+};
+
+module.exports = { handleInventoryMessage, getProperties, deleteProperty };

@@ -11,6 +11,7 @@ const billingRoutes = require('./src/routes/billing');
 const followupRoutes = require('./src/routes/followup');
 const otpRoutes = require('./src/routes/otp');
 const contactRoutes = require('./src/routes/contact');
+const inventoryRoutes = require('./src/routes/inventory');
 
 const app = express();
 
@@ -26,6 +27,7 @@ app.use('/api/billing', billingRoutes);
 app.use('/api/followup', followupRoutes);
 app.use('/api/otp', otpRoutes);
 app.use('/api/contact', contactRoutes);
+app.use('/api/inventory', inventoryRoutes);
 
 // Test route
 app.get('/', (req, res) => {

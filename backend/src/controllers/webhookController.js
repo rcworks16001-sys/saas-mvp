@@ -1,5 +1,6 @@
 const pool = require('../db/index');
 const { updateLeadScore } = require('./leadsController');
+const { handleInventoryMessage } = require('./inventoryController');
 const axios = require('axios');
 const { Resend } = require('resend');
 require('dotenv').config();
@@ -279,6 +280,13 @@ const handleMessage = async (req, res) => {
         const ownerPhone = orgResult.rows[0].phone;
         const ownerEmail = orgResult.rows[0].email;
         const orgName = orgResult.rows[0].name;
+
+        // Check if message is from the agent — route to inventory parser
+        if (ownerPhone && from === ownerPhone) {
+            const reply = await handleInventoryMessage(organizationId, from, messageText);
+            await sendWhatsAppMessage(from, reply);
+            return res.sendStatus(200);
+        }
 
         // Get or create lead
         const { lead, isNew } = await getOrCreateLead(organizationId, from, contactName);
