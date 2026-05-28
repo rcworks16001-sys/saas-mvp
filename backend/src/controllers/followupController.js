@@ -90,7 +90,7 @@ const processFollowups = async () => {
     try {
         // Get all orgs with follow-ups enabled
         const orgs = await pool.query(
-            `SELECT fs.*, o.name as org_name 
+            `SELECT fs.*, o.name as org_name, o.phone as org_phone
              FROM followup_settings fs
              JOIN organizations o ON o.id = fs.organization_id
              WHERE fs.is_enabled = true`
@@ -138,6 +138,16 @@ const processFollowups = async () => {
                             [org.organization_id, lead.id, dayNumber, message]
                         );
                         console.log(`Follow-up day ${dayNumber} sent to ${lead.name} (${lead.phone})`);
+
+                        if (org.org_phone) {
+                            await sendWhatsAppMessage(org.org_phone,
+                                `📅 Follow-up Sent — Day ${dayNumber}\n\n` +
+                                `👤 Lead: ${lead.name}\n` +
+                                `📱 Phone: +${lead.phone}\n` +
+                                `💬 Message: "${message}"\n\n` +
+                                `View dashboard: https://ourivo.com/dashboard`
+                            );
+                        }
                     }
                 }
             }
