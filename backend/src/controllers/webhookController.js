@@ -1,5 +1,13 @@
 const pool = require('../db/index');
 const { updateLeadScore } = require('./leadsController');
+const cloudinary = require('cloudinary').v2;
+
+cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
 const { handleInventoryMessage } = require('./inventoryController');
 const axios = require('axios');
 const { Resend } = require('resend');
@@ -230,6 +238,57 @@ ${nextQuestion ? `Next qualifying question to work in naturally: "${nextQuestion
     }
 };
 
+// ── Handle agent image upload ──
+const handleAgentImage = async (organizationId, imageId) => {
+    try {
+        // Get image URL from Meta
+        const metaResponse = await axios.get(
+            `https://graph.facebook.com/v18.0/${imageId}`,
+            { headers: { Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}` } }
+        );
+        const imageUrl = metaResponse.data.url;
+
+        // Download image buffer from Meta
+        const imageBuffer = await axios.get(imageUrl, {
+            responseType: 'arraybuffer',
+            headers: { Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}` }
+        });
+
+        // Upload to Cloudinary
+        const uploadResult = await new Promise((resolve, reject) => {
+            cloudinary.uploader.upload_stream(
+                { folder: 'ourivo/properties', resource_type: 'image' },
+                (error, result) => { if (error) reject(error); else resolve(result); }
+            ).end(Buffer.from(imageBuffer.data));
+        });
+
+        const cloudinaryUrl = uploadResult.secure_url;
+
+        // Attach to most recent property for this org
+        const latest = await pool.query(
+            `SELECT id, images FROM properties WHERE organization_id = $1 ORDER BY created_at DESC LIMIT 1`,
+            [organizationId]
+        );
+
+        if (latest.rows.length === 0) {
+            return `❌ No property found to attach this image to. Add a listing first.`;
+        }
+
+        const property = latest.rows[0];
+        const updatedImages = [...(property.images || []), cloudinaryUrl];
+
+        await pool.query(
+            'UPDATE properties SET images = $1, updated_at = NOW() WHERE id = $2',
+            [updatedImages, property.id]
+        );
+
+        return `📸 Image added to your latest listing!\n\nView: https://ourivo.com/dashboard/inventory`;
+    } catch (error) {
+        console.error('Image upload error:', error);
+        return `Failed to upload image. Please try again.`;
+    }
+};
+
 // ── Main message handler ──
 const handleMessage = async (req, res) => {
     try {
@@ -283,7 +342,13 @@ const handleMessage = async (req, res) => {
 
         // Check if message is from the agent — route to inventory parser
         if (ownerPhone && from === ownerPhone) {
-            const reply = await handleInventoryMessage(organizationId, from, messageText);
+            let reply;
+            if (message.type === 'image') {
+                const imageId = message.image?.id;
+                reply = await handleAgentImage(organizationId, imageId);
+            } else {
+                reply = await handleInventoryMessage(organizationId, from, messageText);
+            }
             await sendWhatsAppMessage(from, reply);
             return res.sendStatus(200);
         }
