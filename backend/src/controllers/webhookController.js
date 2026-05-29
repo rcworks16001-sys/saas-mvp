@@ -224,7 +224,19 @@ ${nextQuestion ? `Next qualifying question to work in naturally: "${nextQuestion
             system: businessContext,
             messages: messages.length > 0 ? messages : [{ role: 'user', content: userMessage }]
         });
-        return response.content[0].text;
+        const aiReply = response.content[0].text;
+
+        // If all questions just got answered, trigger property matching + brochure
+        const { matchAndSendBrochure } = require('./brochureController');
+        const finalRequirements = freshLead.rows[0]?.requirements || {};
+        const allAnswered = questions.length > 0 && !questions.find(q => !Object.keys(finalRequirements).includes(q.key));
+        if (allAnswered && !nextQuestion) {
+            const orgResult = await pool.query('SELECT * FROM organizations WHERE id = $1', [lead.organization_id]);
+            const org = orgResult.rows[0];
+            matchAndSendBrochure(lead, finalRequirements, lead.organization_id, sendWhatsAppMessage, org?.phone);
+        }
+
+        return aiReply;
 
     } catch (error) {
         console.error('AI response error:', error);
