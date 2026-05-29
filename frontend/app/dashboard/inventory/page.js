@@ -342,8 +342,26 @@ export default function InventoryPage() {
                                 onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                             >
                                 <div>
-                                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>{property.title || '—'}</div>
-                                    {property.furnishing && <div style={{ fontSize: 11, color: 'var(--fog)', marginTop: 2, textTransform: 'capitalize' }}>{property.furnishing}</div>}
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                        {property.images?.length > 0 ? (
+                                            <img
+                                                src={property.images[0]}
+                                                alt={property.title}
+                                                style={{ width: 44, height: 44, borderRadius: 8, objectFit: 'cover', flexShrink: 0, border: '1px solid var(--ice)' }}
+                                            />
+                                        ) : (
+                                            <div style={{ width: 44, height: 44, borderRadius: 8, background: 'var(--mist)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>
+                                                🏢
+                                            </div>
+                                        )}
+                                        <div>
+                                            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>{property.title || '—'}</div>
+                                            {property.furnishing && <div style={{ fontSize: 11, color: 'var(--fog)', marginTop: 2, textTransform: 'capitalize' }}>{property.furnishing}</div>}
+                                            {property.images?.length > 1 && (
+                                                <div style={{ fontSize: 10, color: 'var(--fog)', marginTop: 2 }}>+{property.images.length - 1} more photos</div>
+                                            )}
+                                        </div>
+                                    </div>
                                 </div>
                                 <div style={{ fontSize: 12, color: 'var(--ash)' }}>{property.location || '—'}</div>
                                 <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>{property.price || '—'}</div>
