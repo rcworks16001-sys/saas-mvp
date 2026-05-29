@@ -221,13 +221,11 @@ ${updatedAnsweredKeys.length > 0 ? updatedAnsweredKeys.map(k => `- ${k}: ${requi
                 content: `Customer just said: "${userMessage}". Acknowledge in one short sentence, then ask exactly this and nothing else: "${nextQuestion.question}"`
             }];
         } else {
-            messages = history.map(h => ({
-                role: h.sender === 'customer' ? 'user' : 'assistant',
-                content: h.message
-            }));
-            if (messages.length === 0 || messages[messages.length - 1].role !== 'user') {
-                messages.push({ role: 'user', content: userMessage });
-            }
+            // All questions answered — send fixed closing message, no improvising
+            messages = [{
+                role: 'user',
+                content: `Respond with exactly this and nothing else: "Thank you, ${requirements.name || 'there'}! We've noted your requirements and our team will contact you shortly with the best matching properties. 😊"`
+            }];
         }
 
         const response = await anthropic.messages.create({

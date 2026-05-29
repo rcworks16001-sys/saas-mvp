@@ -1,6 +1,6 @@
 const PDFDocument = require('pdfkit');
 const cloudinary = require('cloudinary').v2;
-const { pool } = require('../db');
+const pool = require('../db');
 
 cloudinary.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
