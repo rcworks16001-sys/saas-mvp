@@ -157,7 +157,7 @@ const getAIResponse = async (userMessage, lead, config, orgInfo) => {
         const lastAskedKey = questions[lastAskedIndex - 1]?.key;
 
         // Save current answer if there was a pending question
-        if (lastAskedKey && !requirements[lastAskedKey]) {
+        if (lastAskedKey && !requirements[lastAskedKey] && !isFirstMessage) {
             const updatedRequirements = { ...requirements, [lastAskedKey]: userMessage };
             await pool.query(
                 'UPDATE leads SET requirements = $1, updated_at = NOW() WHERE id = $2',
