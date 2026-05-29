@@ -197,7 +197,7 @@ Rules:
 Lead info collected so far:
 ${updatedAnsweredKeys.length > 0 ? updatedAnsweredKeys.map(k => `- ${k}: ${requirements[k]}`).join('\n') : 'Nothing yet'}
 
-${nextQuestion ? `Next qualifying question to work in naturally: "${nextQuestion.question}"` : 'All questions answered — thank them and say the team will be in touch.'}
+${nextQuestion ? `Next qualifying question to work in naturally: "${nextQuestion.question}"` : `ALL QUESTIONS ANSWERED. You MUST respond with exactly this and nothing else: "Thank you, ${requirements.name || 'there'}! Our team will review your requirements and get back to you shortly. 😊"`}
         `.trim();
 
         // Get recent conversation history
