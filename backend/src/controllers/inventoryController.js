@@ -37,10 +37,44 @@ If a field is not mentioned, set it to null.`,
 
 // ── Handle incoming agent inventory message ──
 const handleInventoryMessage = async (organizationId, agentPhone, message) => {
+    // Detect status update commands
+    const statusMatch = message.match(/^(SOLD|RENTED|AVAILABLE):\s+(.+)/i);
+    if (statusMatch) {
+        const newStatus = statusMatch[1].toLowerCase();
+        const searchTerm = statusMatch[2].trim();
+
+        try {
+            // Find closest matching property
+            const result = await pool.query(
+                `SELECT * FROM properties 
+                 WHERE organization_id = $1 
+                 AND (title ILIKE $2 OR location ILIKE $2 OR raw_message ILIKE $2)
+                 ORDER BY created_at DESC LIMIT 1`,
+                [organizationId, `%${searchTerm.split(' ')[0]}%`]
+            );
+
+            if (result.rows.length === 0) {
+                return `❌ No matching property found for "${searchTerm}". Check your inventory: https://ourivo.com/dashboard/inventory`;
+            }
+
+            const property = result.rows[0];
+            await pool.query(
+                'UPDATE properties SET status = $1, updated_at = NOW() WHERE id = $2',
+                [newStatus, property.id]
+            );
+
+            return `✅ Updated!\n\n🏢 ${property.title}\n📍 ${property.location}\nStatus → *${newStatus.toUpperCase()}*\n\nView all: https://ourivo.com/dashboard/inventory`;
+        } catch (error) {
+            console.error('Status update error:', error);
+            return `Failed to update status. Try again.`;
+        }
+    }
+
+    // Otherwise treat as new listing
     const parsed = await parsePropertyMessage(message);
 
     if (!parsed) {
-        return `Sorry, I couldn't understand that. Try: "Add: 3BHK Velachery 45L semi-furnished 1200sqft"`;
+        return `Sorry, I couldn't understand that.\n\nTo *add* a listing:\nAdd: 3BHK Velachery 45L semi-furnished 1200sqft\n\nTo *update status*:\nSOLD: 3BHK Velachery\nRENTED: 3BHK Velachery\nAVAILABLE: 3BHK Velachery`;
     }
 
     try {
