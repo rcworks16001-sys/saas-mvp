@@ -206,16 +206,24 @@ ${nextQuestion ? `Next qualifying question to work in naturally: "${nextQuestion
             [lead.id]
         );
         const history = recentConvs.rows.reverse();
-        const messages = isFirstMessage
-            ? [{ role: 'user', content: `New customer first message: "${userMessage}". Use this greeting: "${config?.greeting_message || 'Hello! How can I help you?'}" then ask the first qualifying question naturally.` }]
-            : history.map(h => ({
+        let messages;
+        if (isFirstMessage) {
+            messages = [{ role: 'user', content: `New customer first message: "${userMessage}". Use this greeting: "${config?.greeting_message || 'Hello! How can I help you?'}" then ask the first qualifying question naturally.` }];
+        } else if (nextQuestion) {
+            // Still collecting requirements — ignore history, just ask next question
+            messages = [{
+                role: 'user',
+                content: `Customer just said: "${userMessage}". Acknowledge briefly in one sentence, then ask exactly this question and nothing else: "${nextQuestion.question}"`
+            }];
+        } else {
+            // All questions answered — use history for free conversation
+            messages = history.map(h => ({
                 role: h.sender === 'customer' ? 'user' : 'assistant',
                 content: h.message
             }));
-
-        // Ensure last message is from user
-        if (!isFirstMessage && (messages.length === 0 || messages[messages.length - 1].role !== 'user')) {
-            messages.push({ role: 'user', content: userMessage });
+            if (messages.length === 0 || messages[messages.length - 1].role !== 'user') {
+                messages.push({ role: 'user', content: userMessage });
+            }
         }
 
         const response = await anthropic.messages.create({
