@@ -139,7 +139,6 @@ const getChatbotConfig = async (organizationId) => {
     return result.rows[0];
 };
 
-// ── AI response logic ──
 const getAIResponse = async (userMessage, lead, config, orgInfo) => {
     try {
         const Anthropic = require('@anthropic-ai/sdk');
@@ -147,17 +146,22 @@ const getAIResponse = async (userMessage, lead, config, orgInfo) => {
 
         const questions = config?.questions || [];
 
-        // Always fetch fresh requirements from DB
+        // Fetch fresh requirements from DB
         const freshLead = await pool.query('SELECT * FROM leads WHERE id = $1', [lead.id]);
         const requirements = freshLead.rows[0]?.requirements || {};
+
+        // Count conversations to determine if this is the first message
+        const convCount = await pool.query(
+            'SELECT COUNT(*) FROM conversations WHERE lead_id = $1',
+            [lead.id]
+        );
+        const isFirstMessage = parseInt(convCount.rows[0].count) <= 1;
+
+        // Save current answer if not first message and there's a pending question
         const answeredKeys = Object.keys(requirements);
+        const lastAskedKey = questions[answeredKeys.length]?.key;
 
-        // Figure out which question was last asked
-        const lastAskedIndex = answeredKeys.length;
-        const lastAskedKey = questions[lastAskedIndex]?.key;
-
-        // Save current answer if there was a pending question
-        if (lastAskedKey && !requirements[lastAskedKey] && !isFirstMessage) {
+        if (!isFirstMessage && lastAskedKey && !requirements[lastAskedKey]) {
             const updatedRequirements = { ...requirements, [lastAskedKey]: userMessage };
             await pool.query(
                 'UPDATE leads SET requirements = $1, updated_at = NOW() WHERE id = $2',
@@ -170,12 +174,14 @@ const getAIResponse = async (userMessage, lead, config, orgInfo) => {
         const updatedAnsweredKeys = Object.keys(requirements);
         const nextQuestion = questions.find(q => !updatedAnsweredKeys.includes(q.key));
 
-        // Count total conversations to determine if this is truly first message
-        const convCount = await pool.query(
-            'SELECT COUNT(*) FROM conversations WHERE lead_id = $1',
-            [lead.id]
-        );
-        const isFirstMessage = parseInt(convCount.rows[0].count) <= 1;
+        // Check if all questions just got answered — trigger brochure
+        const allAnswered = questions.length > 0 && !nextQuestion;
+        if (!isFirstMessage && allAnswered) {
+            const { matchAndSendBrochure } = require('./brochureController');
+            const orgResult = await pool.query('SELECT * FROM organizations WHERE id = $1', [lead.organization_id]);
+            const org = orgResult.rows[0];
+            matchAndSendBrochure(lead, requirements, lead.organization_id, sendWhatsAppMessage, org?.phone);
+        }
 
         const businessContext = `
 You are a friendly WhatsApp sales assistant for ${orgInfo?.name || 'a real estate business'}.
@@ -186,18 +192,14 @@ ${config?.ai_rules ? `Important rules:\n${config.ai_rules}` : ''}
 Tone: ${config?.tone || 'professional'}
 
 Rules:
-1. Answer any questions the customer asks naturally
-2. Work in qualifying questions one at a time during natural conversation
-3. Never be pushy
-4. Keep responses to 2-3 sentences max
-5. Respond in the same language as the customer
-6. NEVER repeat a greeting after the first message
-7. Do not introduce yourself again after the first message
+1. Keep responses to 2-3 sentences max
+2. Never be pushy
+3. Respond in the same language as the customer
+4. NEVER repeat a greeting after the first message
+5. Do not introduce yourself again after the first message
 
 Lead info collected so far:
 ${updatedAnsweredKeys.length > 0 ? updatedAnsweredKeys.map(k => `- ${k}: ${requirements[k]}`).join('\n') : 'Nothing yet'}
-
-${nextQuestion ? `Next qualifying question to work in naturally: "${nextQuestion.question}"` : `ALL QUESTIONS ANSWERED. You MUST respond with exactly this and nothing else: "Thank you, ${requirements.name || 'there'}! Our team will review your requirements and get back to you shortly. 😊"`}
         `.trim();
 
         // Get recent conversation history
@@ -206,17 +208,19 @@ ${nextQuestion ? `Next qualifying question to work in naturally: "${nextQuestion
             [lead.id]
         );
         const history = recentConvs.rows.reverse();
+
         let messages;
         if (isFirstMessage) {
-            messages = [{ role: 'user', content: `New customer first message: "${userMessage}". Use this greeting: "${config?.greeting_message || 'Hello! How can I help you?'}" then ask the first qualifying question naturally.` }];
-        } else if (nextQuestion) {
-            // Still collecting requirements — ignore history, just ask next question
             messages = [{
                 role: 'user',
-                content: `Customer just said: "${userMessage}". Acknowledge briefly in one sentence, then ask exactly this question and nothing else: "${nextQuestion.question}"`
+                content: `New customer first message: "${userMessage}". Respond with this greeting: "${config?.greeting_message || 'Hello! How can I help you?'}" then ask exactly this and nothing else: "${questions[0]?.question || ''}"`
+            }];
+        } else if (nextQuestion) {
+            messages = [{
+                role: 'user',
+                content: `Customer just said: "${userMessage}". Acknowledge in one short sentence, then ask exactly this and nothing else: "${nextQuestion.question}"`
             }];
         } else {
-            // All questions answered — use history for free conversation
             messages = history.map(h => ({
                 role: h.sender === 'customer' ? 'user' : 'assistant',
                 content: h.message
@@ -232,19 +236,8 @@ ${nextQuestion ? `Next qualifying question to work in naturally: "${nextQuestion
             system: businessContext,
             messages: messages.length > 0 ? messages : [{ role: 'user', content: userMessage }]
         });
-        const aiReply = response.content[0].text;
 
-        // If all questions just got answered, trigger property matching + brochure
-        const { matchAndSendBrochure } = require('./brochureController');
-        const finalRequirements = freshLead.rows[0]?.requirements || {};
-        const allAnswered = questions.length > 0 && !questions.find(q => !Object.keys(finalRequirements).includes(q.key));
-        if (allAnswered && !nextQuestion) {
-            const orgResult = await pool.query('SELECT * FROM organizations WHERE id = $1', [lead.organization_id]);
-            const org = orgResult.rows[0];
-            matchAndSendBrochure(lead, finalRequirements, lead.organization_id, sendWhatsAppMessage, org?.phone);
-        }
-
-        return aiReply;
+        return response.content[0].text;
 
     } catch (error) {
         console.error('AI response error:', error);
