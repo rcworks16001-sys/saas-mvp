@@ -154,7 +154,7 @@ const getAIResponse = async (userMessage, lead, config, orgInfo) => {
 
         // Figure out which question was last asked
         const lastAskedIndex = answeredKeys.length;
-        const lastAskedKey = questions[lastAskedIndex - 1]?.key;
+        const lastAskedKey = questions[lastAskedIndex]?.key;
 
         // Save current answer if there was a pending question
         if (lastAskedKey && !requirements[lastAskedKey] && !isFirstMessage) {
