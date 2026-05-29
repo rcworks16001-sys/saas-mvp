@@ -92,6 +92,31 @@ const getProperties = async (req, res) => {
     }
 };
 
+// ── PATCH /api/inventory/:id ──
+const updateProperty = async (req, res) => {
+    const { organizationId } = req.user;
+    const { id } = req.params;
+    const { status } = req.body;
+
+    const validStatuses = ['available', 'sold', 'rented'];
+    if (!validStatuses.includes(status)) {
+        return res.status(400).json({ error: 'Invalid status' });
+    }
+
+    try {
+        const result = await pool.query(
+            `UPDATE properties SET status = $1, updated_at = NOW()
+             WHERE id = $2 AND organization_id = $3 RETURNING *`,
+            [status, id, organizationId]
+        );
+        if (result.rows.length === 0) return res.status(404).json({ error: 'Property not found' });
+        res.json({ property: result.rows[0] });
+    } catch (error) {
+        console.error('Update property error:', error);
+        res.status(500).json({ error: 'Failed to update property' });
+    }
+};
+
 // ── DELETE /api/inventory/:id ──
 const deleteProperty = async (req, res) => {
     const { organizationId } = req.user;
@@ -109,4 +134,4 @@ const deleteProperty = async (req, res) => {
     }
 };
 
-module.exports = { handleInventoryMessage, getProperties, deleteProperty };
+module.exports = { handleInventoryMessage, getProperties, updateProperty, deleteProperty };

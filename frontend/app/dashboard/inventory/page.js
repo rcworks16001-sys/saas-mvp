@@ -308,8 +308,8 @@ export default function InventoryPage() {
                     {/* Table */}
                     <div style={{ background: '#fff', border: '1px solid #e8ecf4', borderRadius: 'var(--r-card)', overflow: 'hidden' }}>
                         {/* Header */}
-                        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.2fr 1.2fr 1fr 1fr 1fr 0.8fr', padding: '12px 20px', background: 'var(--mist)', borderBottom: '1px solid var(--ice)' }}>
-                            {['Property', 'Location', 'Price', 'Type', 'Area', 'Status', ''].map(h => (
+                        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.2fr 1.2fr 1fr 1fr 1fr 1fr 0.8fr', padding: '12px 20px', background: 'var(--mist)', borderBottom: '1px solid var(--ice)' }}>
+                            {['Property', 'Location', 'Price', 'Type', 'Area', 'Status', 'Update', ''].map(h => (
                                 <div key={h} style={{ fontSize: 10, fontWeight: 800, color: 'var(--fog)', textTransform: 'uppercase', letterSpacing: '0.09em' }}>{h}</div>
                             ))}
                         </div>
@@ -332,7 +332,7 @@ export default function InventoryPage() {
                         {!loading && filtered.map((property, i) => (
                             <div key={property.id} style={{
                                 display: 'grid',
-                                gridTemplateColumns: '2fr 1.2fr 1.2fr 1fr 1fr 1fr 0.8fr',
+                                gridTemplateColumns: '2fr 1.2fr 1.2fr 1fr 1fr 1fr 1fr 0.8fr',
                                 padding: '15px 20px',
                                 borderBottom: i < filtered.length - 1 ? '1px solid var(--ice)' : 'none',
                                 alignItems: 'center',
@@ -358,6 +358,36 @@ export default function InventoryPage() {
                                 }}>
                                     {STATUS_CONFIG[property.status]?.label || property.status}
                                 </span>
+
+                                <select
+                                    value={property.status}
+                                    onChange={async (e) => {
+                                        const newStatus = e.target.value;
+                                        setProperties(prev => prev.map(p => p.id === property.id ? { ...p, status: newStatus } : p));
+                                        try {
+                                            await api.patch(`/inventory/${property.id}`, { status: newStatus });
+                                            toast.success('Status updated');
+                                        } catch {
+                                            toast.error('Failed to update');
+                                            fetchProperties();
+                                        }
+                                    }}
+                                    style={{
+                                        padding: '6px 9px', background: 'var(--mist)',
+                                        border: '1px solid var(--ice)', borderRadius: 'var(--r-btn)',
+                                        color: 'var(--ash)', fontSize: 12,
+                                        fontFamily: 'var(--font-inter)',
+                                        cursor: 'pointer', outline: 'none',
+                                        transition: 'border-color 0.15s',
+                                    }}
+                                    onFocus={e => e.target.style.borderColor = 'var(--ink)'}
+                                    onBlur={e => e.target.style.borderColor = 'var(--ice)'}
+                                >
+                                    {Object.entries(STATUS_CONFIG).map(([value, config]) => (
+                                        <option key={value} value={value}>{config.label}</option>
+                                    ))}
+                                </select>
+
                                 <button
                                     onClick={() => deleteProperty(property.id)}
                                     disabled={deleting === property.id}
