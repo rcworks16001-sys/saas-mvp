@@ -33,6 +33,8 @@ export default function InventoryPage() {
     const [userName, setUserName] = useState('');
     const [billingStatus, setBillingStatus] = useState(null);
     const [deleting, setDeleting] = useState(null);
+    const [lightbox, setLightbox] = useState(null); // { images: [], index: 0 }
+
 
     useEffect(() => {
         const token = Cookies.get('token');
@@ -347,7 +349,8 @@ export default function InventoryPage() {
                                             <img
                                                 src={property.images[0]}
                                                 alt={property.title}
-                                                style={{ width: 44, height: 44, borderRadius: 8, objectFit: 'cover', flexShrink: 0, border: '1px solid var(--ice)' }}
+                                                onClick={() => setLightbox({ images: property.images, index: 0 })}
+                                                style={{ width: 44, height: 44, borderRadius: 8, objectFit: 'cover', flexShrink: 0, border: '1px solid var(--ice)', cursor: 'pointer' }}
                                             />
                                         ) : (
                                             <div style={{ width: 44, height: 44, borderRadius: 8, background: 'var(--mist)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>
@@ -446,6 +449,62 @@ export default function InventoryPage() {
                     </div>
                 </main>
             </div>
+
+            {/* Lightbox */}
+            {lightbox && (
+                <div
+                    onClick={() => setLightbox(null)}
+                    style={{
+                        position: 'fixed', inset: 0, zIndex: 1000,
+                        background: 'rgba(0,0,0,0.85)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}
+                >
+                    <div onClick={e => e.stopPropagation()} style={{ position: 'relative', maxWidth: '90vw', maxHeight: '90vh' }}>
+                        <img
+                            src={lightbox.images[lightbox.index]}
+                            alt="Property"
+                            style={{ maxWidth: '90vw', maxHeight: '80vh', borderRadius: 12, objectFit: 'contain', display: 'block' }}
+                        />
+
+                        {/* Close */}
+                        <button onClick={() => setLightbox(null)} style={{
+                            position: 'absolute', top: -16, right: -16,
+                            width: 32, height: 32, borderRadius: '50%',
+                            background: 'var(--ink)', border: 'none',
+                            color: '#fff', fontSize: 16, cursor: 'pointer',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        }}>×</button>
+
+                        {/* Prev */}
+                        {lightbox.images.length > 1 && lightbox.index > 0 && (
+                            <button onClick={() => setLightbox(prev => ({ ...prev, index: prev.index - 1 }))} style={{
+                                position: 'absolute', left: -48, top: '50%', transform: 'translateY(-50%)',
+                                width: 36, height: 36, borderRadius: '50%',
+                                background: 'var(--ink)', border: 'none',
+                                color: '#fff', fontSize: 18, cursor: 'pointer',
+                            }}>‹</button>
+                        )}
+
+                        {/* Next */}
+                        {lightbox.images.length > 1 && lightbox.index < lightbox.images.length - 1 && (
+                            <button onClick={() => setLightbox(prev => ({ ...prev, index: prev.index + 1 }))} style={{
+                                position: 'absolute', right: -48, top: '50%', transform: 'translateY(-50%)',
+                                width: 36, height: 36, borderRadius: '50%',
+                                background: 'var(--ink)', border: 'none',
+                                color: '#fff', fontSize: 18, cursor: 'pointer',
+                            }}>›</button>
+                        )}
+
+                        {/* Counter */}
+                        {lightbox.images.length > 1 && (
+                            <div style={{ textAlign: 'center', marginTop: 12, fontSize: 12, color: 'var(--fog)' }}>
+                                {lightbox.index + 1} / {lightbox.images.length}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
 
             <style>{`
                 @keyframes shimmer { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
