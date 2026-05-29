@@ -27,7 +27,7 @@ If a field is not mentioned, set it to null.`,
             messages: [{ role: 'user', content: message }]
         });
 
-        const raw = response.content[0].text.trim();
+        const raw = response.content[0].text.trim().replace(/```json|```/g, '').trim();
         return JSON.parse(raw);
     } catch (error) {
         console.error('Property parse error:', error);
