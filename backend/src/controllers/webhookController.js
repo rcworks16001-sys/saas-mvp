@@ -141,114 +141,178 @@ const getChatbotConfig = async (organizationId) => {
 
 const getAIResponse = async (userMessage, lead, config, orgInfo) => {
     try {
-        const Anthropic = require('@anthropic-ai/sdk');
-        const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-
         const questions = config?.questions || [];
+        const coreKeys = questions.map(q => q.key); // ['name','rent_or_buy','bhk','area','budget']
 
-        // Fetch fresh requirements from DB
+        // Fetch fresh state
         const freshLead = await pool.query('SELECT * FROM leads WHERE id = $1', [lead.id]);
         const requirements = freshLead.rows[0]?.requirements || {};
 
-        // Count conversations to determine if this is the first message
-        const convCount = await pool.query(
-            'SELECT COUNT(*) FROM conversations WHERE lead_id = $1',
-            [lead.id]
-        );
+        // Count conversations
+        const convCount = await pool.query('SELECT COUNT(*) FROM conversations WHERE lead_id = $1', [lead.id]);
         const isFirstMessage = parseInt(convCount.rows[0].count) <= 1;
 
-        // Save current answer if not first message and there's a pending question
-        const answeredKeys = Object.keys(requirements);
-        const lastAskedKey = questions[answeredKeys.length]?.key;
+        // Phase flags
+        const answeredCoreKeys = coreKeys.filter(k => requirements[k]);
+        const lastAskedKey = !isFirstMessage ? coreKeys[answeredCoreKeys.length] : null;
+        const brochureSent = requirements._brochure_sent === true;
+        const moveInAnswered = !!requirements._move_in_date;
 
-        if (!isFirstMessage && lastAskedKey && !requirements[lastAskedKey]) {
-            const updatedRequirements = { ...requirements, [lastAskedKey]: userMessage };
+        // ── PHASE 1a: First message — greet + ask name ──
+        if (isFirstMessage) {
+            const firstQuestion = questions[0]?.question || 'May I know your name?';
+            return `${config?.greeting_message || 'Hello! Welcome! 😊'}\n\n${firstQuestion}`;
+        }
+
+        // ── PHASE 1b: Save answer if still collecting core requirements ──
+        if (!brochureSent && lastAskedKey && !requirements[lastAskedKey]) {
+            requirements[lastAskedKey] = userMessage;
             await pool.query(
                 'UPDATE leads SET requirements = $1, updated_at = NOW() WHERE id = $2',
-                [JSON.stringify(updatedRequirements), lead.id]
+                [JSON.stringify(requirements), lead.id]
             );
-            Object.assign(requirements, updatedRequirements);
             await updateLeadScore(lead.id);
         }
 
-        const updatedAnsweredKeys = Object.keys(requirements);
-        const nextQuestion = questions.find(q => !updatedAnsweredKeys.includes(q.key));
+        // Recompute after save
+        const updatedCoreAnswered = coreKeys.filter(k => requirements[k]);
+        const allCoreAnswered = updatedCoreAnswered.length === coreKeys.length;
+        const nextCoreQuestion = questions.find(q => !requirements[q.key]);
 
-        // Check if all questions just got answered — trigger brochure
-        const allAnswered = questions.length > 0 && !nextQuestion;
-        if (!isFirstMessage && allAnswered) {
-            const { matchAndSendBrochure } = require('./brochureController');
+        // ── PHASE 1c: Ask next core question ──
+        if (!allCoreAnswered && !brochureSent) {
+            const ack = getAck(lastAskedKey, userMessage, requirements.name);
+            return `${ack} ${nextCoreQuestion.question}`;
+        }
+
+        // ── PHASE 2: All core questions answered → trigger brochure ──
+        if (allCoreAnswered && !brochureSent) {
+            const { matchProperties, generateAndSendBrochure } = require('./brochureController');
             const orgResult = await pool.query('SELECT * FROM organizations WHERE id = $1', [lead.organization_id]);
             const org = orgResult.rows[0];
-            matchAndSendBrochure(lead, requirements, lead.organization_id, sendWhatsAppMessage, org?.phone);
+
+            const { exactMatches, proximityMatches } = await matchProperties(requirements, lead.organization_id);
+            const hasProperties = exactMatches.length + proximityMatches.length > 0;
+
+            if (hasProperties) {
+                generateAndSendBrochure(lead, requirements, exactMatches, proximityMatches, org)
+                    .catch(e => console.error('[Brochure] generate error:', e));
+            }
+
+            requirements._brochure_sent = true;
+            requirements._has_properties = hasProperties;
+            await pool.query(
+                'UPDATE leads SET requirements = $1, updated_at = NOW() WHERE id = $2',
+                [JSON.stringify(requirements), lead.id]
+            );
+
+            const name = requirements.name || 'there';
+            if (hasProperties) {
+                return `Thank you, ${name}! 🏠 I've found some properties matching your requirements and I'm sending you a brochure right now!\n\nWhen are you looking to move in?`;
+            } else {
+                return `Thank you, ${name}! We're checking our latest listings for you. Our team will reach out shortly with the best options.\n\nWhen are you looking to move in?`;
+            }
         }
 
-        const businessContext = `
-You are a friendly WhatsApp sales assistant for ${orgInfo?.name || 'a real estate business'}.
-${orgInfo?.description ? `About the business: ${orgInfo.description}` : ''}
-${orgInfo?.service_locations ? `Service areas: ${orgInfo.service_locations}` : ''}
-${orgInfo?.working_hours ? `Working hours: ${orgInfo.working_hours}` : ''}
-${config?.ai_rules ? `Important rules:\n${config.ai_rules}` : ''}
-Tone: ${config?.tone || 'professional'}
+        // ── PHASE 3: Move-in date ──
+        if (brochureSent && !moveInAnswered) {
+            requirements._move_in_date = userMessage;
 
-Rules:
-1. Keep responses to 2-3 sentences max
-2. Never be pushy
-3. Respond in the same language as the customer
-4. NEVER repeat a greeting after the first message
-5. Do not introduce yourself again after the first message
+            const urgentPhrases = ['asap', 'immediately', 'urgent', 'this month', 'right now', 'now', 'soon', 'quickly', 'as soon as possible', 'earliest'];
+            const isUrgent = urgentPhrases.some(p => userMessage.toLowerCase().includes(p));
 
-Lead info collected so far:
-${updatedAnsweredKeys.length > 0 ? updatedAnsweredKeys.map(k => `- ${k}: ${requirements[k]}`).join('\n') : 'Nothing yet'}
-        `.trim();
+            if (isUrgent && !requirements._urgent_alert_sent) {
+                try {
+                    if (orgInfo?.phone) {
+                        await sendWhatsAppMessage(orgInfo.phone,
+                            `🔥 *Hot Lead Alert!*\n\nName: ${requirements.name || 'Unknown'}\nPhone: ${lead.phone}\nLooking to: ${requirements.rent_or_buy}\nBHK: ${requirements.bhk}\nArea: ${requirements.area}\nBudget: ${requirements.budget}\nMove-in: ${userMessage}\n\nThis lead wants to move in ASAP. Contact them immediately!`
+                        );
+                    }
+                    requirements._urgent_alert_sent = true;
+                    await pool.query(
+                        "UPDATE leads SET score_label = 'hot', score = 90, updated_at = NOW() WHERE id = $1",
+                        [lead.id]
+                    );
+                } catch (e) { console.error('[Alert] urgent error:', e); }
+            }
 
-        // Get recent conversation history
-        const recentConvs = await pool.query(
-            `SELECT message, sender FROM conversations WHERE lead_id = $1 ORDER BY created_at DESC LIMIT 10`,
+            await pool.query(
+                'UPDATE leads SET requirements = $1, updated_at = NOW() WHERE id = $2',
+                [JSON.stringify(requirements), lead.id]
+            );
+
+            return `Perfect! Our team will contact you soon with the best available options. Feel free to ask if you have any questions. 😊`;
+        }
+
+        // ── PHASE 4: Post-brochure conversation ──
+
+        // Activity detection
+        const recentActivity = await pool.query(
+            `SELECT COUNT(*) FROM conversations WHERE lead_id = $1 AND sender = 'customer' AND created_at > NOW() - INTERVAL '10 minutes'`,
             [lead.id]
         );
-        const history = recentConvs.rows.reverse();
+        const isHighActivity = parseInt(recentActivity.rows[0].count) >= 5;
 
-        let messages;
-        if (isFirstMessage) {
-            messages = [{
-                role: 'user',
-                content: `New customer first message: "${userMessage}". Respond with this greeting: "${config?.greeting_message || 'Hello! How can I help you?'}" then ask exactly this and nothing else: "${questions[0]?.question || ''}"`
-            }];
-        } else if (nextQuestion) {
-            messages = [{
-                role: 'user',
-                content: `Customer just said: "${userMessage}". Acknowledge in one short sentence, then ask exactly this and nothing else: "${nextQuestion.question}"`
-            }];
-        } else {
-            // All questions answered — send fixed closing message, no improvising
-            messages = [{
-                role: 'user',
-                content: `Respond with exactly this and nothing else: "Thank you, ${requirements.name || 'there'}! We've noted your requirements and our team will contact you shortly with the best matching properties. 😊"`
-            }];
+        if (isHighActivity && !requirements._activity_alert_sent) {
+            try {
+                if (orgInfo?.phone) {
+                    await sendWhatsAppMessage(orgInfo.phone,
+                        `⚡ *Active Lead Alert!*\n\nName: ${requirements.name || 'Unknown'}\nPhone: ${lead.phone}\n\nThis lead is very active right now. Check the conversation!`
+                    );
+                }
+                requirements._activity_alert_sent = true;
+                await pool.query(
+                    'UPDATE leads SET requirements = $1 WHERE id = $2',
+                    [JSON.stringify(requirements), lead.id]
+                );
+            } catch (e) { console.error('[Alert] activity error:', e); }
         }
 
-        const response = await anthropic.messages.create({
-            model: 'claude-haiku-4-5-20251001',
-            max_tokens: 200,
-            system: businessContext,
-            messages: messages.length > 0 ? messages : [{ role: 'user', content: userMessage }]
-        });
+        // Interest detection
+        const interestPhrases = ['i like', 'i want', 'interested', 'this one', 'that one', 'looks good', 'book', 'want to see', 'visit', 'i\'ll take', 'perfect'];
+        const hasInterest = interestPhrases.some(p => userMessage.toLowerCase().includes(p));
 
-        return response.content[0].text;
+        if (hasInterest && !requirements._interest_alert_sent) {
+            try {
+                if (orgInfo?.phone) {
+                    await sendWhatsAppMessage(orgInfo.phone,
+                        `🏠 *Property Interest Alert!*\n\nName: ${requirements.name || 'Unknown'}\nPhone: ${lead.phone}\n\nThe customer has expressed interest in a property. Reach out now!`
+                    );
+                }
+                requirements._interest_alert_sent = true;
+                await pool.query(
+                    'UPDATE leads SET requirements = $1 WHERE id = $2',
+                    [JSON.stringify(requirements), lead.id]
+                );
+            } catch (e) { console.error('[Alert] interest error:', e); }
+
+            return `Great choice! Our team will contact you shortly to arrange a visit and share more details. 😊`;
+        }
+
+        return `Thank you for your interest! Our team will be in touch with you soon. 😊`;
 
     } catch (error) {
         console.error('AI response error:', error);
         const questions = config?.questions || [];
         const requirements = lead.requirements || {};
-        const answeredKeys = Object.keys(requirements);
-        const nextQuestion = questions.find(q => !answeredKeys.includes(q.key));
+        const nextQuestion = questions.find(q => !requirements[q.key]);
         if (!nextQuestion) return `Thank you! Our team will contact you shortly.`;
-        if (answeredKeys.length === 0) return `${config?.greeting_message || 'Hello!'}\n\n${nextQuestion.question}`;
+        if (Object.keys(requirements).length === 0) return `${config?.greeting_message || 'Hello!'}\n\n${nextQuestion.question}`;
         return nextQuestion.question;
     }
 };
 
+// Acknowledgment helper — add this just above getAIResponse
+const getAck = (savedKey, value, name) => {
+    switch (savedKey) {
+        case 'name': return `Great to meet you, ${value}! 😊`;
+        case 'rent_or_buy': return `Got it!`;
+        case 'bhk': return `Perfect!`;
+        case 'area': return `${value} sounds great!`;
+        case 'budget': return `Noted!`;
+        default: return `Got it!`;
+    }
+};
 // ── Handle agent image upload ──
 const handleAgentImage = async (organizationId, imageId) => {
     try {
