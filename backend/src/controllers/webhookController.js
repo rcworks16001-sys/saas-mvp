@@ -465,8 +465,7 @@ const handleMessage = async (req, res) => {
         // Get or create lead
         const { lead, isNew } = await getOrCreateLead(organizationId, from, contactName);
 
-        // Guard: non-text messages (reactions, stickers, location, etc.) have no body.
-        // Don't insert null — acknowledge and stop.
+        // Guard: non-text messages (reactions, stickers, location) have no body.
         if (!messageText || !messageText.trim()) {
             await sendWhatsAppMessage(from, 'Please send your message as text so I can help you. 😊');
             return res.sendStatus(200);
@@ -532,11 +531,10 @@ const handleMessage = async (req, res) => {
         res.sendStatus(200);
 
     } catch (error) {
-        const saveMessage = async (organizationId, leadId, message, sender) => {
-            console.error('Webhook error:', error);
-            // Return 200 so Meta does not retry and re-trigger the same failure in a loop.
-            res.sendStatus(200);
-        }
-    };
+        console.error('Webhook error:', error);
+        // Return 200 so Meta does not retry and re-trigger the same failure in a loop.
+        res.sendStatus(200);
+    }
+};
 
-    module.exports = { verify, handleMessage };
+module.exports = { verify, handleMessage };
