@@ -40,7 +40,11 @@ const matchProperties = async (requirements, orgId) => {
     let exactParams = [orgId];
     let idx = 2;
 
-    if (area) { exactConditions.push(`location ILIKE $${idx}`); exactParams.push(`%${area}%`); idx++; }
+    if (area) {
+        exactConditions.push(`(location ILIKE $${idx} OR similarity(location, $${idx + 1}) > 0.3)`);
+        exactParams.push(`%${area}%`, area);
+        idx += 2;
+    }
     if (bhk) { exactConditions.push(`bedrooms = $${idx}`); exactParams.push(bhk); idx++; }
     if (budgetLakhs) { exactConditions.push(`price <= $${idx}`); exactParams.push(Math.round(budgetLakhs * 1.2)); idx++; }
 
@@ -61,7 +65,11 @@ const matchProperties = async (requirements, orgId) => {
         proxParams.push(exactIds);
         idx++;
     }
-    if (area) { proxConditions.push(`location ILIKE $${idx}`); proxParams.push(`%${area}%`); idx++; }
+    if (area) {
+        proxConditions.push(`(location ILIKE $${idx} OR similarity(location, $${idx + 1}) > 0.3)`);
+        proxParams.push(`%${area}%`, area);
+        idx += 2;
+    }
     if (bhk) {
         proxConditions.push(`bedrooms BETWEEN $${idx} AND $${idx + 1}`);
         proxParams.push(Math.max(1, bhk - 1), bhk + 1);

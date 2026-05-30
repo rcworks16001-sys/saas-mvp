@@ -123,6 +123,7 @@ const getOrCreateLead = async (organizationId, phone, name) => {
 
 // ── Save message ──
 const saveMessage = async (organizationId, leadId, message, sender) => {
+    if (!message || !String(message).trim()) return; // never insert null/empty
     await pool.query(
         `INSERT INTO conversations (organization_id, lead_id, message, sender)
      VALUES ($1, $2, $3, $4)`,
@@ -464,13 +465,20 @@ const handleMessage = async (req, res) => {
         // Get or create lead
         const { lead, isNew } = await getOrCreateLead(organizationId, from, contactName);
 
+        // Guard: non-text messages (reactions, stickers, location, etc.) have no body.
+        // Don't insert null — acknowledge and stop.
+        if (!messageText || !messageText.trim()) {
+            await sendWhatsAppMessage(from, 'Please send your message as text so I can help you. 😊');
+            return res.sendStatus(200);
+        }
+
         // Save incoming message
         await saveMessage(organizationId, lead.id, messageText, 'customer');
 
         // Generate and send bot response
         const config = await getChatbotConfig(organizationId);
         const orgInfoResult = await pool.query(
-            'SELECT name, description, service_locations, working_hours FROM organizations WHERE id = $1',
+            'SELECT name, phone, email, description, service_locations, working_hours FROM organizations WHERE id = $1',
             [organizationId]
         );
         const orgInfo = orgInfoResult.rows[0];
@@ -524,9 +532,11 @@ const handleMessage = async (req, res) => {
         res.sendStatus(200);
 
     } catch (error) {
-        console.error('Webhook error:', error);
-        res.sendStatus(500);
-    }
-};
+        const saveMessage = async (organizationId, leadId, message, sender) => {
+            console.error('Webhook error:', error);
+            // Return 200 so Meta does not retry and re-trigger the same failure in a loop.
+            res.sendStatus(200);
+        }
+    };
 
-module.exports = { verify, handleMessage };
+    module.exports = { verify, handleMessage };
