@@ -153,8 +153,6 @@ const getAIResponse = async (userMessage, lead, config, orgInfo) => {
         const isFirstMessage = parseInt(convCount.rows[0].count) <= 1;
 
         // Phase flags
-        const answeredCoreKeys = coreKeys.filter(k => requirements[k]);
-        const lastAskedKey = !isFirstMessage ? coreKeys[answeredCoreKeys.length] : null;
         const brochureSent = requirements._brochure_sent === true;
         const moveInAnswered = !!requirements._move_in_date;
 
@@ -164,14 +162,49 @@ const getAIResponse = async (userMessage, lead, config, orgInfo) => {
             return `${config?.greeting_message || 'Hello! Welcome! 😊'}\n\n${firstQuestion}`;
         }
 
-        // ── PHASE 1b: Save answer if still collecting core requirements ──
-        if (!brochureSent && lastAskedKey && !requirements[lastAskedKey]) {
-            requirements[lastAskedKey] = userMessage;
-            await pool.query(
-                'UPDATE leads SET requirements = $1, updated_at = NOW() WHERE id = $2',
-                [JSON.stringify(requirements), lead.id]
-            );
-            await updateLeadScore(lead.id);
+        // ── PHASE 1b: Smart extraction using Claude Haiku ──
+        if (!brochureSent) {
+            const Anthropic = require('@anthropic-ai/sdk');
+            const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+            const extractRes = await anthropic.messages.create({
+                model: 'claude-haiku-4-5-20251001',
+                max_tokens: 200,
+                messages: [{
+                    role: 'user',
+                    content: `Extract real estate requirements from a WhatsApp message and update existing data.
+
+Current requirements: ${JSON.stringify(requirements)}
+Customer message: "${userMessage}"
+
+Fields to extract:
+- name: customer name only
+- rent_or_buy: must be exactly "buy" or "rent"
+- bhk: number only as string e.g. "3"
+- area: locality name only e.g. "Velachery"
+- budget: as stated e.g. "45 lakhs"
+
+Rules:
+- If customer corrects a previous answer (e.g. "sorry, I meant buy"), update that field
+- "3bhk in Velachery" → bhk is "3" AND area is "Velachery"
+- Only include fields clearly present in this message
+- Do not overwrite existing fields unless customer is correcting them
+- Return ONLY a valid JSON object, no markdown, no explanation`
+                }]
+            });
+
+            try {
+                const raw = extractRes.content[0].text.replace(/```json|```/g, '').trim();
+                const extracted = JSON.parse(raw);
+                Object.assign(requirements, extracted);
+                await pool.query(
+                    'UPDATE leads SET requirements = $1, updated_at = NOW() WHERE id = $2',
+                    [JSON.stringify(requirements), lead.id]
+                );
+                await updateLeadScore(lead.id);
+            } catch (e) {
+                console.error('[Extract] parse error:', e);
+            }
         }
 
         // Recompute after save
@@ -181,7 +214,7 @@ const getAIResponse = async (userMessage, lead, config, orgInfo) => {
 
         // ── PHASE 1c: Ask next core question ──
         if (!allCoreAnswered && !brochureSent) {
-            const ack = getAck(lastAskedKey, userMessage, requirements.name);
+            const ack = requirements.name ? `Got it, ${requirements.name}! 😊` : `Got it! 😊`;
             return `${ack} ${nextCoreQuestion.question}`;
         }
 
