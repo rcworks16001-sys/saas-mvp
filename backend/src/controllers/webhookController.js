@@ -426,21 +426,21 @@ const handleMessage = async (req, res) => {
         const incomingPhoneNumberId = value?.metadata?.phone_number_id;
         console.log(`Incoming message to phone_number_id: ${incomingPhoneNumberId}`);
 
-        let orgResult;
-
-        if (incomingPhoneNumberId && incomingPhoneNumberId === process.env.WHATSAPP_PHONE_NUMBER_ID) {
-            orgResult = await pool.query(
-                'SELECT id, phone, email, name FROM organizations ORDER BY created_at ASC LIMIT 1'
-            );
-        } else {
-            orgResult = await pool.query(
-                'SELECT id, phone, email, name FROM organizations ORDER BY created_at ASC LIMIT 1'
-            );
+        if (!incomingPhoneNumberId) {
+            console.error('No phone_number_id in webhook metadata — cannot route. Dropping.');
+            return res.sendStatus(200);
         }
+
+        // Route to the org that owns this WhatsApp number.
+        const orgResult = await pool.query(
+            'SELECT id, phone, email, name FROM organizations WHERE whatsapp_phone_number_id = $1 ORDER BY created_at ASC LIMIT 1',
+            [incomingPhoneNumberId]
+        );
 
         console.log(`Routing to org: ${orgResult.rows[0]?.id}`);
 
         if (orgResult.rows.length === 0) {
+            console.error(`No org found for phone_number_id ${incomingPhoneNumberId}. Dropping message.`);
             return res.sendStatus(200);
         }
 
