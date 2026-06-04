@@ -323,6 +323,48 @@ Rules:
             return `Great choice! Our team will contact you shortly to arrange a visit and share more details. 😊`;
         }
 
+        // Default post-brochure reply — route through Haiku for a contextual answer.
+        try {
+            const Anthropic = require('@anthropic-ai/sdk');
+            const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+            const historyRes = await pool.query(
+                `SELECT sender, message FROM conversations
+                 WHERE lead_id = $1 ORDER BY created_at DESC LIMIT 8`,
+                [lead.id]
+            );
+            const history = historyRes.rows.reverse()
+                .map(r => `${r.sender === 'customer' ? 'Buyer' : 'Assistant'}: ${r.message}`)
+                .join('\n');
+
+            const aiReply = await anthropic.messages.create({
+                model: 'claude-haiku-4-5-20251001',
+                max_tokens: 200,
+                system: `You are a warm, helpful WhatsApp assistant for ${orgInfo?.name || 'a real estate agency'}.
+
+The buyer has already received a brochure with matching properties. A human agent will follow up to share details and arrange visits.
+
+Buyer's requirements: ${JSON.stringify({ name: requirements.name, looking_to: requirements.rent_or_buy, bhk: requirements.bhk, area: requirements.area, budget: requirements.budget })}
+
+RULES:
+- Reply in 1-2 short sentences, WhatsApp style.
+- Be warm and conversational.
+- You may answer general questions (how the process works, timing, what happens next).
+- You do NOT have specific details about individual properties (exact parking, floor, price negotiability, legal/loan terms, availability of a specific unit). For anything like that, say the agent will confirm shortly. NEVER invent property details.
+- Do not repeat the buyer's full requirement list back to them.
+- If the buyer wants to proceed or visit, reassure them the agent will reach out soon.`,
+                messages: [{
+                    role: 'user',
+                    content: `Recent conversation:\n${history}\n\nBuyer's latest message: "${userMessage}"\n\nWrite a helpful reply.`
+                }]
+            });
+
+            const reply = aiReply.content[0]?.text?.trim();
+            if (reply) return reply;
+        } catch (e) {
+            console.error('[Phase4] Haiku error:', e);
+        }
+
         return `Thank you for your interest! Our team will be in touch with you soon. 😊`;
 
     } catch (error) {
