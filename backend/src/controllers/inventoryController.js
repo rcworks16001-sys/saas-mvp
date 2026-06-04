@@ -4,6 +4,24 @@ require('dotenv').config();
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
+// ── Normalizers: bedrooms as integer, price as number in lakhs ──
+const toBedroomsInt = (val) => {
+    if (val === null || val === undefined) return null;
+    const m = val.toString().match(/(\d+)/);
+    return m ? parseInt(m[1], 10) : null;
+};
+const toPriceLakhs = (val) => {
+    if (val === null || val === undefined) return null;
+    const str = val.toString().toLowerCase().replace(/,/g, '').trim();
+    const crore = str.match(/(\d+\.?\d*)\s*(cr|crore|c)/);
+    const lakh = str.match(/(\d+\.?\d*)\s*(l|lakh|lakhs|lac)/);
+    const plain = str.match(/(\d+\.?\d*)/);
+    if (crore) return parseFloat(crore[1]) * 100;
+    if (lakh) return parseFloat(lakh[1]);
+    if (plain) { const v = parseFloat(plain[1]); return v > 1000 ? v / 100000 : v; }
+    return null;
+};
+
 // ── Parse agent message with Claude ──
 const parsePropertyMessage = async (message) => {
     try {
@@ -86,8 +104,8 @@ const handleInventoryMessage = async (organizationId, agentPhone, message) => {
                 organizationId,
                 parsed.title,
                 parsed.location,
-                parsed.price,
-                parsed.bedrooms,
+                toPriceLakhs(parsed.price),
+                toBedroomsInt(parsed.bedrooms),
                 parsed.area_sqft,
                 parsed.furnishing,
                 parsed.status || 'available',

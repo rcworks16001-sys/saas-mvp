@@ -120,8 +120,7 @@ export default function DashboardPage() {
     ];
 
     const navItems = [
-        { label: 'Dashboard', href: '/dashboard', icon: '⊞', active: true },
-        { label: 'Leads', href: '/dashboard/leads', icon: '👥', badge: hotCount > 0 ? hotCount : null, badgeRed: true },
+        { label: 'Dashboard', href: '/dashboard', icon: '⊞', active: true, badge: hotCount > 0 ? hotCount : null, badgeRed: true },
         { label: 'Inventory', href: '/dashboard/inventory', icon: '🏢' },
         { label: 'Follow-ups', href: '/dashboard/followups', icon: '🔄' },
     ];

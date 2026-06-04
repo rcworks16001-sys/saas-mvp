@@ -88,7 +88,7 @@ export default function InventoryPage() {
         const matchesSearch = search === '' ||
             p.title?.toLowerCase().includes(search.toLowerCase()) ||
             p.location?.toLowerCase().includes(search.toLowerCase()) ||
-            p.bedrooms?.toLowerCase().includes(search.toLowerCase());
+            String(p.bedrooms ?? '').toLowerCase().includes(search.toLowerCase());
         return matchesFilter && matchesSearch;
     });
 
@@ -106,7 +106,6 @@ export default function InventoryPage() {
 
     const navItems = [
         { label: 'Dashboard', href: '/dashboard', icon: '⊞' },
-        { label: 'Leads', href: '/dashboard/leads', icon: '👥' },
         { label: 'Inventory', href: '/dashboard/inventory', icon: '🏢', active: true },
         { label: 'Follow-ups', href: '/dashboard/followups', icon: '🔄' },
     ];
@@ -367,8 +366,8 @@ export default function InventoryPage() {
                                     </div>
                                 </div>
                                 <div style={{ fontSize: 12, color: 'var(--ash)' }}>{property.location || '—'}</div>
-                                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>{property.price || '—'}</div>
-                                <div style={{ fontSize: 12, color: 'var(--ash)' }}>{property.bedrooms || '—'}</div>
+                                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>{property.price ? (property.price >= 100 ? `₹${(property.price / 100).toFixed(2)} Cr` : `₹${property.price} L`) : '—'}</div>
+                                <div style={{ fontSize: 12, color: 'var(--ash)' }}>{property.bedrooms ? `${property.bedrooms} BHK` : '—'}</div>
                                 <div style={{ fontSize: 12, color: 'var(--ash)' }}>{property.area_sqft ? `${property.area_sqft} sqft` : '—'}</div>
                                 <span style={{
                                     display: 'inline-flex', alignItems: 'center',

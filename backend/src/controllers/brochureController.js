@@ -131,17 +131,19 @@ const generatePDF = (exactMatches, proximityMatches, org, leadName) => {
             doc.fillColor('#000000').font('Helvetica-Bold').fontSize(14)
                 .text(prop.title || 'Property', 95, y + 10, { width: pageWidth - 120 });
             doc.fillColor('#444444').font('Helvetica').fontSize(11)
-                .text(`📍 ${prop.location || '—'}`, 95, y + 32);
+                .text(`${prop.location || '—'}`, 95, y + 32);
 
+            const bhkNum = parseBHK(prop.bedrooms);
             const details = [
-                prop.bedrooms ? `${prop.bedrooms} BHK` : null,
+                bhkNum ? `${bhkNum} BHK` : null,
                 prop.area_sqft ? `${prop.area_sqft} sq.ft` : null,
                 prop.furnishing || null,
             ].filter(Boolean).join('   •   ');
             doc.fillColor('#444444').font('Helvetica').fontSize(11).text(details, 95, y + 52);
 
-            const priceDisplay = prop.price
-                ? prop.price >= 100 ? `₹${(prop.price / 100).toFixed(2)} Cr` : `₹${prop.price} L`
+            const priceLakhs = parseBudget(prop.price);
+            const priceDisplay = priceLakhs
+                ? priceLakhs >= 100 ? `Rs. ${(priceLakhs / 100).toFixed(2)} Cr` : `Rs. ${priceLakhs} L`
                 : '—';
             doc.fillColor('#000000').font('Helvetica-Bold').fontSize(16).text(priceDisplay, 95, y + 78);
 
@@ -149,14 +151,14 @@ const generatePDF = (exactMatches, proximityMatches, org, leadName) => {
         };
 
         if (exactMatches.length > 0) {
-            doc.fillColor('#000000').font('Helvetica-Bold').fontSize(11).text('🏆 Best Matches', 50, y);
+            doc.fillColor('#000000').font('Helvetica-Bold').fontSize(11).text('Best Matches', 50, y);
             y += 20;
             exactMatches.forEach((p, i) => drawProperty(p, i, 'Best Match'));
         }
 
         if (proximityMatches.length > 0) {
             if (y > doc.page.height - 250) { doc.addPage(); y = 50; }
-            doc.fillColor('#444444').font('Helvetica-Bold').fontSize(11).text('✨ You Might Also Like', 50, y);
+            doc.fillColor('#444444').font('Helvetica-Bold').fontSize(11).text('You Might Also Like', 50, y);
             y += 20;
             proximityMatches.forEach((p, i) => drawProperty(p, i, 'Similar'));
         }
