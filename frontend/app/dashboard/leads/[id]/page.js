@@ -82,6 +82,10 @@ export default function LeadDetailPage() {
         const token = Cookies.get('token');
         if (!token) { router.push('/login'); return; }
         fetchLead();
+
+        // Poll every 7s so new WhatsApp messages appear without a manual refresh.
+        const pollId = setInterval(refreshLeadSilently, 5000);
+        return () => clearInterval(pollId);
     }, []);
 
     useEffect(() => {
@@ -99,6 +103,18 @@ export default function LeadDetailPage() {
             if (error.response?.status === 404) router.push('/dashboard');
         } finally {
             setLoading(false);
+        }
+    };
+
+    // Silent background refresh for polling — no spinner, no toast, no redirects.
+    // A blip just gets retried on the next tick; we don't disrupt the open page.
+    const refreshLeadSilently = async () => {
+        try {
+            const response = await api.get(`/leads/${params.id}`);
+            setLead(response.data.lead);
+            setConversations(response.data.conversations);
+        } catch (error) {
+            // Intentionally swallow transient poll errors.
         }
     };
 

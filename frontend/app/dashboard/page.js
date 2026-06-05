@@ -50,7 +50,19 @@ export default function DashboardPage() {
     const [search, setSearch] = useState('');
     const [userName, setUserName] = useState('');
     const [billingStatus, setBillingStatus] = useState(null);
-
+    const fetchLead = async () => {
+        try {
+            const response = await api.get(`/leads/${params.id}`);
+            setLead(response.data.lead);
+            setConversations(response.data.conversations);
+        } catch (error) {
+            toast.error('Failed to load lead');
+            if (error.response?.status === 401) router.push('/login');
+            if (error.response?.status === 404) router.push('/dashboard');
+        } finally {
+            setLoading(false);
+        }
+    };
     useEffect(() => {
         const token = Cookies.get('token');
         if (!token) { router.push('/login'); return; }
