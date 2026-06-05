@@ -24,6 +24,28 @@ const migrate = async () => {
 
             ALTER TABLE organizations ADD COLUMN IF NOT EXISTS whatsapp_phone_number_id TEXT;
             CREATE INDEX IF NOT EXISTS idx_orgs_wa_phone_id ON organizations(whatsapp_phone_number_id);
+
+            -- P1: when the current paid month ends. NULL = never paid (trial or expired).
+            ALTER TABLE organizations ADD COLUMN IF NOT EXISTS subscription_ends_at TIMESTAMPTZ;
+
+            -- P3: payment history in our own DB (not just Razorpay's dashboard).
+            -- amount is stored in PAISE (Razorpay's unit): 199900 = Rs 1,999.
+            CREATE TABLE IF NOT EXISTS payments (
+                id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+                organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+                razorpay_order_id TEXT NOT NULL,
+                razorpay_payment_id TEXT NOT NULL,
+                amount INTEGER NOT NULL,
+                currency TEXT NOT NULL DEFAULT 'INR',
+                status TEXT NOT NULL DEFAULT 'captured',
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            );
+
+           CREATE INDEX IF NOT EXISTS idx_payments_org_id ON payments(organization_id);
+
+            -- Strict idempotency: one Razorpay payment can only ever produce one row.
+            CREATE UNIQUE INDEX IF NOT EXISTS uniq_payments_razorpay_payment_id
+                ON payments(razorpay_payment_id);
         `);
 
         // Backfill: every existing org currently shares the sandbox number.

@@ -16,6 +16,13 @@ const inventoryRoutes = require('./src/routes/inventory');
 const app = express();
 
 app.use(cors());
+
+// Razorpay webhook must read the RAW request body to verify its signature,
+// so it is mounted BEFORE express.json() (which would consume the body).
+// No JWT auth here by design — it's protected by signature verification.
+const { razorpayWebhook } = require('./src/controllers/billingController');
+app.post('/api/billing/webhook', express.raw({ type: '*/*' }), razorpayWebhook);
+
 app.use(express.json());
 
 // Routes

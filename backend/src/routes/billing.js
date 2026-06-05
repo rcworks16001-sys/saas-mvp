@@ -19,7 +19,7 @@ const authOnly = (req, res, next) => {
 };
 
 router.get('/status', authOnly, getBillingStatus);
-router.post('/create-order', authOnly, createOrder);
-router.post('/verify-payment', authOnly, verifyPayment);
+router.post('/order', authOnly, createOrder);
+router.post('/verify', authOnly, verifyPayment);
 
 module.exports = router;
