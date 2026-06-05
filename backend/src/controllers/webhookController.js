@@ -197,11 +197,36 @@ Rules:
             try {
                 const raw = extractRes.content[0].text.replace(/```json|```/g, '').trim();
                 const extracted = JSON.parse(raw);
-                Object.assign(requirements, extracted);
-                await pool.query(
-                    'UPDATE leads SET requirements = $1, updated_at = NOW() WHERE id = $2',
-                    [JSON.stringify(requirements), lead.id]
-                );
+
+                // Lock the lead row, re-read FRESH requirements inside the transaction,
+                // merge the AI-extracted fields onto that fresh copy, then write.
+                // This prevents two concurrent messages from the same lead from each
+                // saving onto a stale snapshot and silently dropping the other's fields.
+                const client = await pool.connect();
+                try {
+                    await client.query('BEGIN');
+                    const locked = await client.query(
+                        'SELECT requirements FROM leads WHERE id = $1 FOR UPDATE',
+                        [lead.id]
+                    );
+                    const freshReqs = locked.rows[0]?.requirements || {};
+                    Object.assign(freshReqs, extracted);
+                    await client.query(
+                        'UPDATE leads SET requirements = $1, updated_at = NOW() WHERE id = $2',
+                        [JSON.stringify(freshReqs), lead.id]
+                    );
+                    await client.query('COMMIT');
+                    // Keep the in-memory copy used by the rest of this function in sync
+                    // with what we just committed.
+                    Object.keys(requirements).forEach(k => delete requirements[k]);
+                    Object.assign(requirements, freshReqs);
+                } catch (txErr) {
+                    await client.query('ROLLBACK');
+                    throw txErr;
+                } finally {
+                    client.release();
+                }
+
                 await updateLeadScore(lead.id);
             } catch (e) {
                 console.error('[Extract] parse error:', e);
