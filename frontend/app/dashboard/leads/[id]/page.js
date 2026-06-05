@@ -77,6 +77,7 @@ export default function LeadDetailPage() {
     const [replyText, setReplyText] = useState('');
     const [sending, setSending] = useState(false);
     const conversationEndRef = useRef(null);
+    const prevConvCount = useRef(0);
 
     useEffect(() => {
         const token = Cookies.get('token');
@@ -89,7 +90,13 @@ export default function LeadDetailPage() {
     }, []);
 
     useEffect(() => {
-        conversationEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        // Only auto-scroll when new messages actually arrived, not on every poll.
+        // Otherwise the view yanks the agent to the bottom every few seconds even
+        // when they've scrolled up to read earlier messages.
+        if (conversations.length > prevConvCount.current) {
+            conversationEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        }
+        prevConvCount.current = conversations.length;
     }, [conversations]);
 
     const fetchLead = async () => {
