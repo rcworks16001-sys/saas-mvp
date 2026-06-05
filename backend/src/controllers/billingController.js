@@ -122,7 +122,7 @@ const verifyPayment = async (req, res) => {
 const getBillingStatus = async (req, res) => {
     try {
         const result = await pool.query(
-            'SELECT subscription_plan, subscription_status, created_at FROM organizations WHERE id = $1',
+            'SELECT subscription_plan, subscription_status, trial_ends_at, subscription_ends_at FROM organizations WHERE id = $1',
             [req.user.organizationId]
         );
 
@@ -131,20 +131,31 @@ const getBillingStatus = async (req, res) => {
         }
 
         const org = result.rows[0];
-
-        // Calculate trial days remaining
-        const createdAt = new Date(org.created_at);
-        const trialEndsAt = new Date(createdAt.setDate(createdAt.getDate() + 14));
         const now = new Date();
-        const daysRemaining = Math.ceil((trialEndsAt - now) / (1000 * 60 * 60 * 24));
-        const isTrialActive = daysRemaining > 0 && org.subscription_status !== 'active';
+
+        // Read trial_ends_at from the DB as the single source of truth — the
+        // SAME column the auth middleware uses. Do NOT recompute from
+        // created_at + 14, or the two will disagree after any manual edit.
+        const trialEndsAt = org.trial_ends_at ? new Date(org.trial_ends_at) : null;
+
+        // "Subscribed" means an active PAID plan — mirrors the middleware's
+        // isActive check (status === 'active' AND plan === 'pro'). Note: new
+        // orgs default to status 'active' + plan 'trial', so checking status
+        // alone (the old bug) mislabelled every trial org.
+        const isSubscribed = org.subscription_status === 'active' && org.subscription_plan === 'pro';
+
+        const daysRemaining = trialEndsAt
+            ? Math.ceil((trialEndsAt - now) / (1000 * 60 * 60 * 24))
+            : 0;
+        const isTrialActive = !isSubscribed && trialEndsAt !== null && daysRemaining > 0;
 
         res.json({
             plan: org.subscription_plan,
             status: org.subscription_status,
             isTrialActive,
             trialDaysRemaining: isTrialActive ? daysRemaining : 0,
-            trialEndsAt: trialEndsAt.toISOString(),
+            trialEndsAt: trialEndsAt ? trialEndsAt.toISOString() : null,
+            subscriptionEndsAt: org.subscription_ends_at ? new Date(org.subscription_ends_at).toISOString() : null,
         });
 
     } catch (error) {
@@ -152,7 +163,6 @@ const getBillingStatus = async (req, res) => {
         res.status(500).json({ error: 'Failed to get billing status' });
     }
 };
-
 // ── Razorpay webhook (server-to-server, no browser involved) ──
 // This is the reliable source of truth: Razorpay calls us directly when a
 // payment is captured, even if the customer closed the tab. Signature scheme
@@ -201,6 +211,54 @@ const razorpayWebhook = async (req, res) => {
             console.log(`Webhook activated org ${organizationId} for payment ${payment.id}`);
         }
 
+        // Failed payment: nothing to undo — it never activated anyone.
+        // Logged for diagnostics only; no DB change.
+        if (event.event === 'payment.failed') {
+            const payment = event.payload?.payment?.entity;
+            console.warn(`Webhook: payment failed — id ${payment?.id}, order ${payment?.order_id}, reason: ${payment?.error_description || 'unknown'}`);
+        }
+
+        // Refund: mark our payment row refunded, and revoke access on a FULL
+        // refund. Both refund.created and refund.processed are handled; the ops
+        // are idempotent, so receiving both for one refund is harmless.
+        if (event.event === 'refund.created' || event.event === 'refund.processed') {
+            const refund = event.payload?.refund?.entity;
+            if (refund?.payment_id) {
+                // Find the original payment we stored on capture (P3).
+                const payRow = await pool.query(
+                    'SELECT organization_id, amount FROM payments WHERE razorpay_payment_id = $1 LIMIT 1',
+                    [refund.payment_id]
+                );
+
+                if (payRow.rows.length > 0) {
+                    const { organization_id, amount } = payRow.rows[0];
+
+                    await pool.query(
+                        `UPDATE payments SET status = 'refunded' WHERE razorpay_payment_id = $1`,
+                        [refund.payment_id]
+                    );
+
+                    // Full refund → revoke access. Partial refund → keep access
+                    // (rare on a flat plan, but correct to distinguish).
+                    if (refund.amount >= amount) {
+                        await pool.query(
+                            `UPDATE organizations
+                             SET subscription_status = 'expired',
+                                 subscription_ends_at = NULL,
+                                 updated_at = NOW()
+                             WHERE id = $1`,
+                            [organization_id]
+                        );
+                        console.log(`Webhook: full refund on payment ${refund.payment_id} — org ${organization_id} access revoked`);
+                    } else {
+                        console.log(`Webhook: partial refund on payment ${refund.payment_id} (${refund.amount}/${amount} paise) — payment marked refunded, access kept`);
+                    }
+                } else {
+                    console.error(`Webhook: refund for unknown payment ${refund.payment_id} — no matching row`);
+                }
+            }
+        }
+
         // 200 for handled and ignored events so Razorpay stops retrying.
         res.status(200).json({ received: true });
 
@@ -211,4 +269,34 @@ const razorpayWebhook = async (req, res) => {
     }
 };
 
-module.exports = { createOrder, verifyPayment, getBillingStatus, razorpayWebhook };
+// ── Expire lapsed subscriptions (cron) ──
+// This is what actually ENFORCES monthly billing. Without it, a one-time
+// payment grants permanent access (the original revenue leak). Guards make it
+// surgical — it ONLY touches genuinely-lapsed PAID orgs:
+//   - subscription_status = 'active'  → don't re-touch already-expired orgs
+//   - subscription_plan = 'pro'       → never touch trial orgs
+//   - subscription_ends_at IS NOT NULL→ never touch never-paid orgs (incl. the
+//                                        manually-activated test org, which has
+//                                        NULL here)
+//   - subscription_ends_at < NOW()    → only when the paid month is actually up
+const expireLapsedSubscriptions = async () => {
+    try {
+        const result = await pool.query(
+            `UPDATE organizations
+             SET subscription_status = 'expired', updated_at = NOW()
+             WHERE subscription_status = 'active'
+               AND subscription_plan = 'pro'
+               AND subscription_ends_at IS NOT NULL
+               AND subscription_ends_at < NOW()
+             RETURNING id`
+        );
+
+        if (result.rowCount > 0) {
+            console.log(`Subscription expiry cron: ${result.rowCount} org(s) expired — ${result.rows.map(r => r.id).join(', ')}`);
+        }
+    } catch (error) {
+        console.error('Subscription expiry cron error:', error);
+    }
+};
+
+module.exports = { createOrder, verifyPayment, getBillingStatus, razorpayWebhook, expireLapsedSubscriptions };

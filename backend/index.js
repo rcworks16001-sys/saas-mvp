@@ -51,6 +51,16 @@ setInterval(async () => {
 // Run once on startup too
 processFollowups();
 
+// ── Subscription expiry cron — runs every hour ──
+// Enforces monthly billing: flips lapsed paid subscriptions to 'expired'.
+const { expireLapsedSubscriptions } = require('./src/controllers/billingController');
+setInterval(async () => {
+    await expireLapsedSubscriptions();
+}, 60 * 60 * 1000); // every hour
+
+// Run once on startup too
+expireLapsedSubscriptions();
+
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
 });
