@@ -1,5 +1,4 @@
 'use client';
-
 import { SignUp } from '@clerk/nextjs';
 
 export default function SignUpPage() {
@@ -9,53 +8,56 @@ export default function SignUpPage() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            background: '#0F1115',
+            background: '#F5F7FA',
             padding: '24px',
         }}>
-            <SignUp
-                routing="hash"
-                appearance={{
-                    variables: {
-                        colorPrimary: '#4F8CFF',
-                        colorBackground: '#161A22',
-                        colorText: '#F5F7FA',
-                        colorTextSecondary: '#C5CDD8',
-                        colorInputBackground: '#1C2130',
-                        colorInputText: '#F5F7FA',
-                        colorDanger: '#f87171',
-                        colorSuccess: '#34d399',
-                        borderRadius: '10px',
-                        fontFamily: 'Inter, sans-serif',
-                        colorWarning: '#F59E0B',
+            <SignUp routing="hash" appearance={{
+                variables: {
+                    colorPrimary: '#0F1115',
+                    colorBackground: '#FFFFFF',
+                    colorText: '#0F1115',
+                    colorTextSecondary: '#555C6A',
+                    colorInputBackground: '#FFFFFF',
+                    colorInputText: '#0F1115',
+                    colorDanger: '#ef4444',
+                    colorWarning: '#d97706',
+                    borderRadius: '32px',
+                    fontFamily: 'Inter, sans-serif',
+                },
+                elements: {
+                    card: {
+                        backgroundColor: '#FFFFFF',
+                        borderRadius: '32px',
+                        boxShadow: 'none',
+                        border: '1.5px solid #E5E7EB',
                     },
-                    elements: {
-                        card: {
-                            backgroundColor: '#161A22',
-                            border: '1px solid #2A3142',
-                            boxShadow: '0 10px 30px rgba(0,0,0,0.4)',
-                            formFieldWarningText: { color: '#FFA500' },
-                            formFieldHintText: { color: '#C5CDD8' },
-                            identityPreviewText: { color: '#C5CDD8' },
-                        },
-                        headerTitle: { color: '#F5F7FA' },
-                        headerSubtitle: { color: '#C5CDD8' },
-                        formFieldLabel: { color: '#E0E4EA' },
-                        formButtonPrimary: {
-                            backgroundColor: '#4F8CFF',
-                            textTransform: 'none',
-                            fontSize: '14px',
-                            fontWeight: '600',
-                        },
-                        footerActionLink: { color: '#4F8CFF' },
-                        footerActionText: { color: '#C5CDD8' },
-                        otpCodeFieldInput: {
-                            backgroundColor: '#2A3142',
-                            color: '#F5F7FA',
-                            border: '1.5px solid #4F8CFF',
-                        },
+                    headerTitle: {
+                        color: '#0F1115',
+                        fontFamily: '"Bebas Neue", sans-serif',
+                        fontSize: '28px',
+                        letterSpacing: '0.04em',
                     },
-                }}
-            />
+                    headerSubtitle: { color: '#555C6A' },
+                    formFieldLabel: { color: '#0F1115', fontWeight: '500' },
+                    formButtonPrimary: {
+                        backgroundColor: '#0F1115',
+                        color: '#FFFFFF',
+                        textTransform: 'none',
+                        fontSize: '14px',
+                        fontWeight: '600',
+                    },
+                    footerActionLink: { color: '#0F1115', fontWeight: '700', textDecoration: 'underline' },
+                    footerActionText: { color: '#555C6A' },
+                    formFieldWarningText: { color: '#d97706' },
+                    formFieldHintText: { color: '#555C6A' },
+                    identityPreviewText: { color: '#555C6A' },
+                    otpCodeFieldInput: {
+                        backgroundColor: '#F5F7FA',
+                        color: '#0F1115',
+                        border: '1.5px solid #0F1115',
+                    },
+                },
+            }} />
         </div>
     );
 }
