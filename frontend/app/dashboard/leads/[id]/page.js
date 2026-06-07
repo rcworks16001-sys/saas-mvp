@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import Cookies from 'js-cookie';
+import { useUser } from '@clerk/nextjs';
 import toast from 'react-hot-toast';
 import api from '../../../../lib/api';
 
@@ -67,6 +67,7 @@ const getSenderStyle = (sender) => {
 
 export default function LeadDetailPage() {
     const router = useRouter();
+    const { isLoaded, isSignedIn } = useUser();
     const params = useParams();
     const [lead, setLead] = useState(null);
     const [conversations, setConversations] = useState([]);
@@ -80,14 +81,14 @@ export default function LeadDetailPage() {
     const prevConvCount = useRef(0);
 
     useEffect(() => {
-        const token = Cookies.get('token');
-        if (!token) { router.push('/login'); return; }
+        if (!isLoaded) return;
+        if (!isSignedIn) { router.push('/sign-in'); return; }
         fetchLead();
 
         // Poll every 7s so new WhatsApp messages appear without a manual refresh.
         const pollId = setInterval(refreshLeadSilently, 5000);
         return () => clearInterval(pollId);
-    }, []);
+    }, [isLoaded, isSignedIn]);
 
     useEffect(() => {
         // Only auto-scroll when new messages actually arrived, not on every poll.
@@ -106,7 +107,7 @@ export default function LeadDetailPage() {
             setConversations(response.data.conversations);
         } catch (error) {
             toast.error('Failed to load lead');
-            if (error.response?.status === 401) router.push('/login');
+            if (error.response?.status === 401) router.push('/sign-in');
             if (error.response?.status === 404) router.push('/dashboard');
         } finally {
             setLoading(false);

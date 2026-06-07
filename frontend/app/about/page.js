@@ -28,8 +28,8 @@ export default function AboutPage() {
                     ))}
                 </div>
                 <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                    <Link href="/login" style={{ fontSize: 13, fontWeight: 600, color: 'var(--ash)', textDecoration: 'none', padding: '8px 18px', borderRadius: 'var(--r-btn)', border: '1.5px solid var(--ice)', transition: 'all 0.18s' }}>Sign in</Link>
-                    <Link href="/register" style={{ fontSize: 13, fontWeight: 700, color: '#fff', textDecoration: 'none', padding: '8px 18px', borderRadius: 'var(--r-btn)', background: 'var(--ink)', transition: 'opacity 0.18s' }}>Start Free Trial →</Link>
+                    <Link href="/sign-in" style={{ fontSize: 13, fontWeight: 600, color: 'var(--ash)', textDecoration: 'none', padding: '8px 18px', borderRadius: 'var(--r-btn)', border: '1.5px solid var(--ice)', transition: 'all 0.18s' }}>Sign in</Link>
+                    <Link href="/sign-up" style={{ fontSize: 13, fontWeight: 700, color: '#fff', textDecoration: 'none', padding: '8px 18px', borderRadius: 'var(--r-btn)', background: 'var(--ink)', transition: 'opacity 0.18s' }}>Start Free Trial →</Link>
                 </div>
             </nav>
 
@@ -147,7 +147,7 @@ export default function AboutPage() {
                         READY TO GET<br />STARTED?
                     </h3>
                     <p style={{ fontSize: 14, color: 'var(--fog)', marginBottom: 28 }}>14 days free. No credit card required.</p>
-                    <Link href="/register" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '13px 32px', background: 'var(--green)', borderRadius: 'var(--r-btn)', color: 'var(--ink)', fontWeight: 700, fontSize: 15, textDecoration: 'none', transition: 'opacity 0.18s' }}>
+                    <Link href="/sign-up" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '13px 32px', background: 'var(--green)', borderRadius: 'var(--r-btn)', color: 'var(--ink)', fontWeight: 700, fontSize: 15, textDecoration: 'none', transition: 'opacity 0.18s' }}>
                         Start Free Trial →
                     </Link>
                 </div>

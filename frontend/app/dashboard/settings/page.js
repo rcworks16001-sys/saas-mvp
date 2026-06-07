@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import Cookies from 'js-cookie';
+import { useUser, useClerk } from '@clerk/nextjs';
 import toast from 'react-hot-toast';
 import api from '../../../lib/api';
 
@@ -51,6 +51,8 @@ const sectionStyle = {
 
 export default function SettingsPage() {
     const router = useRouter();
+    const { isLoaded, isSignedIn } = useUser();
+    const { signOut } = useClerk();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [activeTab, setActiveTab] = useState('Account');
@@ -78,11 +80,11 @@ export default function SettingsPage() {
     const [billingStatus, setBillingStatus] = useState(null);
 
     useEffect(() => {
-        const token = Cookies.get('token');
-        if (!token) { router.push('/login'); return; }
+        if (!isLoaded) return;
+        if (!isSignedIn) { router.push('/sign-in'); return; }
         fetchSettings();
         fetchBilling();
-    }, []);
+    }, [isLoaded, isSignedIn]);
 
     useEffect(() => {
         sandboxEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -123,9 +125,7 @@ export default function SettingsPage() {
         try {
             await api.delete('/auth/delete-account');
             toast.success('Account deleted');
-            Cookies.remove('token');
-            Cookies.remove('organizationId');
-            Cookies.remove('userName');
+            await signOut();
             router.push('/');
         } catch {
             toast.error('Failed to delete account');

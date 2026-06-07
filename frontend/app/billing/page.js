@@ -4,22 +4,23 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import Cookies from 'js-cookie';
+import { useUser } from '@clerk/nextjs';
 import toast from 'react-hot-toast';
 import api from '../../lib/api';
 
 export default function BillingPage() {
     const router = useRouter();
+    const { isLoaded, isSignedIn } = useUser();
     const [billingStatus, setBillingStatus] = useState(null);
     const [loading, setLoading] = useState(true);
     const [paying, setPaying] = useState(false);
 
     useEffect(() => {
-        const token = Cookies.get('token');
-        if (!token) { router.push('/login'); return; }
+        if (!isLoaded) return;
+        if (!isSignedIn) { router.push('/sign-in'); return; }
         fetchBillingStatus();
         loadRazorpay();
-    }, []);
+    }, [isLoaded, isSignedIn]);
 
     const loadRazorpay = () => {
         return new Promise((resolve) => {
@@ -38,7 +39,7 @@ export default function BillingPage() {
             setBillingStatus(response.data);
         } catch (error) {
             toast.error('Failed to load billing info');
-            if (error.response?.status === 401) router.push('/login');
+            if (error.response?.status === 401) router.push('/sign-in');
         } finally {
             setLoading(false);
         }

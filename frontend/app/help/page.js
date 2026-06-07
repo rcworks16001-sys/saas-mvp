@@ -48,7 +48,7 @@ const Navbar = () => (
         </Link>
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
             <Link
-                href="/login"
+                href="/sign-in"
                 style={{
                     padding: '7px 18px',
                     background: 'transparent',
@@ -63,7 +63,7 @@ const Navbar = () => (
                 Sign in
             </Link>
             <Link
-                href="/register"
+                href="/sign-up"
                 style={{
                     padding: '9px 20px',
                     background: 'var(--ink)',
@@ -124,7 +124,7 @@ const FAQS = [
         items: [
             {
                 q: 'How do I get started with Ourivo?',
-                a: 'Sign up for a free 14-day trial at ourivo.com/register. No credit card required. Once you create your account, go to Settings → Chatbot to set up your greeting message and qualifying questions.'
+                a: 'Sign up for a free 14-day trial at ourivo.com/sign-up. No credit card required. Once you create your account, go to Settings → Chatbot to set up your greeting message and qualifying questions.'
             },
             {
                 q: 'Do I need any technical knowledge to use Ourivo?',

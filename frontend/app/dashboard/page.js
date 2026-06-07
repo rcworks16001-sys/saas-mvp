@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
-import Cookies from 'js-cookie';
+import { useUser, useClerk } from '@clerk/nextjs';
 import toast from 'react-hot-toast';
 import api from '../../lib/api';
 
@@ -44,6 +44,8 @@ function SkeletonRow() {
 
 export default function DashboardPage() {
     const router = useRouter();
+    const { user, isLoaded, isSignedIn } = useUser();
+    const { signOut } = useClerk();
     const [leads, setLeads] = useState([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState('all');
@@ -57,19 +59,19 @@ export default function DashboardPage() {
             setConversations(response.data.conversations);
         } catch (error) {
             toast.error('Failed to load lead');
-            if (error.response?.status === 401) router.push('/login');
+            if (error.response?.status === 401) router.push('/sign-in');
             if (error.response?.status === 404) router.push('/dashboard');
         } finally {
             setLoading(false);
         }
     };
     useEffect(() => {
-        const token = Cookies.get('token');
-        if (!token) { router.push('/login'); return; }
-        setUserName(Cookies.get('userName') || 'there');
+        if (!isLoaded) return;
+        if (!isSignedIn) { router.push('/sign-in'); return; }
+        setUserName(user?.fullName || user?.firstName || user?.primaryEmailAddress?.emailAddress?.split('@')[0] || 'there');
         fetchLeads();
         fetchBillingStatus();
-    }, []);
+    }, [isLoaded, isSignedIn]);
 
     const fetchLeads = async () => {
         try {
@@ -77,7 +79,7 @@ export default function DashboardPage() {
             setLeads(response.data.leads);
         } catch (error) {
             toast.error('Failed to load leads');
-            if (error.response?.status === 401) router.push('/login');
+            if (error.response?.status === 401) router.push('/sign-in');
         } finally {
             setLoading(false);
         }
@@ -102,11 +104,9 @@ export default function DashboardPage() {
         }
     };
 
-    const handleLogout = () => {
-        Cookies.remove('token');
-        Cookies.remove('organizationId');
-        Cookies.remove('userName');
-        router.push('/login');
+    const handleLogout = async () => {
+        await signOut();
+        router.push('/');
     };
 
     const filteredLeads = leads.filter(lead => {

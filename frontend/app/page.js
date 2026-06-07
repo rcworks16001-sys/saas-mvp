@@ -8,8 +8,8 @@ import Image from 'next/image'
 // CHANGE THESE IF NEEDED
 // ─────────────────────────────────────────────────────────────────────────────
 const SITE = {
-  registerUrl: '/register',
-  loginUrl: '/login',
+  registerUrl: '/sign-up',
+  loginUrl: '/sign-in',
   contactUrl: '/contact',
   price: '₹1,999',
   trialDays: 14,

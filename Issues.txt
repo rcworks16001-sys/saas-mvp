@@ -1,0 +1,30 @@
+**Config — manual, no code needed:**
+1. Set `RAZORPAY_WEBHOOK_SECRET` in `.env` AND Railway (identical value)
+2. Create Razorpay dashboard webhook — URL `/api/billing/webhook`, same secret, events: `payment.captured`, `payment.failed`, `refund.created`, `refund.processed`
+3. Re-run `migrate.js` and confirm `payments` table, `subscription_ends_at` column, and `uniq_payments_razorpay_payment_id` index all exist in the live DB
+
+**Test pass — nothing tested yet:**
+
+4. Full end-to-end billing test (Part 9 of the handoff): routes, real payment, webhook fires, idempotency, expiry cron, auth blocks expired user, `getBillingStatus` reads `trial_ends_at`, refund revokes access
+
+**Remaining build:**
+
+5. Renewal-reminder email — send a few days before `subscription_ends_at`
+
+**Non-payment items (untouched from your original S11 doc):**
+
+6. WhatsApp owner alerts — Meta WABA is disabled, appeal pending (external)
+7. Race condition on fast messages — `SELECT FOR UPDATE` on the lead row
+8. Real-time lead chat in dashboard — polling or SSE/WebSocket
+9. Clerk authentication — replace custom OTP/JWT
+10. PostHog analytics
+11. Stale listing flag — caveat properties older than 30 days in brochures
+12. Self-serve WhatsApp number onboarding
+
+**Optional polish:**
+
+13. "Subscription expired" vs "trial expired" message for lapsed paid clients
+14. Embed property images in the PDF brochure
+15. Lead-notification email re-skin to Dayos palette
+
+Items 1–4 before anything else — config and test pass must complete before you can trust any of the billing work.

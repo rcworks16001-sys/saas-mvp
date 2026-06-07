@@ -1,3 +1,4 @@
+import { ClerkProvider } from '@clerk/nextjs';
 import { Inter, Playfair_Display, Bebas_Neue } from 'next/font/google';
 import { Toaster } from 'react-hot-toast';
 import './globals.css';
@@ -30,11 +31,13 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" className={`${inter.variable} ${playfair.variable} ${bebasNeue.variable}`}>
-      <body style={{ fontFamily: 'var(--font-inter)' }}>
-        <Toaster position="top-right" />
-        {children}
-      </body>
-    </html>
+    <ClerkProvider>
+      <html lang="en" className={`${inter.variable} ${playfair.variable} ${bebasNeue.variable}`}>
+        <body style={{ fontFamily: 'var(--font-inter)' }}>
+          <Toaster position="top-right" />
+          {children}
+        </body>
+      </html>
+    </ClerkProvider>
   );
 }

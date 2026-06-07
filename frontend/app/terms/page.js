@@ -47,7 +47,7 @@ const Navbar = () => (
         </Link>
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
             <Link
-                href="/login"
+                href="/sign-in"
                 style={{
                     padding: '7px 18px',
                     background: 'transparent',
@@ -62,7 +62,7 @@ const Navbar = () => (
                 Sign in
             </Link>
             <Link
-                href="/register"
+                href="/sign-up"
                 style={{
                     padding: '9px 20px',
                     background: 'var(--ink)',

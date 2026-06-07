@@ -60,8 +60,8 @@ export default function ContactPage() {
                     ))}
                 </div>
                 <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                    <Link href="/login" style={{ fontSize: 13, fontWeight: 600, color: 'var(--ash)', textDecoration: 'none', padding: '8px 18px', borderRadius: 'var(--r-btn)', border: '1.5px solid var(--ice)', transition: 'all 0.18s' }}>Sign in</Link>
-                    <Link href="/register" style={{ fontSize: 13, fontWeight: 700, color: '#fff', textDecoration: 'none', padding: '8px 18px', borderRadius: 'var(--r-btn)', background: 'var(--ink)' }}>Start Free Trial →</Link>
+                    <Link href="/sign-in" style={{ fontSize: 13, fontWeight: 600, color: 'var(--ash)', textDecoration: 'none', padding: '8px 18px', borderRadius: 'var(--r-btn)', border: '1.5px solid var(--ice)', transition: 'all 0.18s' }}>Sign in</Link>
+                    <Link href="/sign-up" style={{ fontSize: 13, fontWeight: 700, color: '#fff', textDecoration: 'none', padding: '8px 18px', borderRadius: 'var(--r-btn)', background: 'var(--ink)' }}>Start Free Trial →</Link>
                 </div>
             </nav>
 

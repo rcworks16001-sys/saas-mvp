@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import Cookies from 'js-cookie';
+import { useUser } from '@clerk/nextjs';
 import toast from 'react-hot-toast';
 import api from '../../../lib/api';
 
@@ -31,16 +31,17 @@ const focusHandlers = {
 
 export default function FollowupsPage() {
     const router = useRouter();
+    const { isLoaded, isSignedIn } = useUser();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [isEnabled, setIsEnabled] = useState(true);
     const [sequences, setSequences] = useState(DEFAULT_SEQUENCES);
 
     useEffect(() => {
-        const token = Cookies.get('token');
-        if (!token) { router.push('/login'); return; }
+        if (!isLoaded) return;
+        if (!isSignedIn) { router.push('/sign-in'); return; }
         fetchSettings();
-    }, []);
+    }, [isLoaded, isSignedIn]);
 
     const fetchSettings = async () => {
         try {

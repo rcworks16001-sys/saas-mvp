@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
-import Cookies from 'js-cookie';
+import { useUser, useClerk } from '@clerk/nextjs';
 import toast from 'react-hot-toast';
 import api from '../../../lib/api';
 
@@ -26,6 +26,8 @@ function SkeletonRow() {
 
 export default function InventoryPage() {
     const router = useRouter();
+    const { user, isLoaded, isSignedIn } = useUser();
+    const { signOut } = useClerk();
     const [properties, setProperties] = useState([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
@@ -37,12 +39,12 @@ export default function InventoryPage() {
 
 
     useEffect(() => {
-        const token = Cookies.get('token');
-        if (!token) { router.push('/login'); return; }
-        setUserName(Cookies.get('userName') || 'there');
+        if (!isLoaded) return;
+        if (!isSignedIn) { router.push('/sign-in'); return; }
+        setUserName(user?.fullName || user?.firstName || user?.primaryEmailAddress?.emailAddress?.split('@')[0] || 'there');
         fetchProperties();
         fetchBillingStatus();
-    }, []);
+    }, [isLoaded, isSignedIn]);
 
     const fetchProperties = async () => {
         try {
@@ -50,7 +52,7 @@ export default function InventoryPage() {
             setProperties(response.data.properties);
         } catch (error) {
             toast.error('Failed to load inventory');
-            if (error.response?.status === 401) router.push('/login');
+            if (error.response?.status === 401) router.push('/sign-in');
         } finally {
             setLoading(false);
         }
@@ -76,11 +78,9 @@ export default function InventoryPage() {
         }
     };
 
-    const handleLogout = () => {
-        Cookies.remove('token');
-        Cookies.remove('organizationId');
-        Cookies.remove('userName');
-        router.push('/login');
+    const handleLogout = async () => {
+        await signOut();
+        router.push('/');
     };
 
     const filtered = properties.filter(p => {

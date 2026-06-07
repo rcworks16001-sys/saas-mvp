@@ -283,7 +283,7 @@ const expireLapsedSubscriptions = async () => {
     try {
         const result = await pool.query(
             `UPDATE organizations
-             SET subscription_status = 'expired', updated_at = NOW()
+              SET subscription_status = 'expired'
              WHERE subscription_status = 'active'
                AND subscription_plan = 'pro'
                AND subscription_ends_at IS NOT NULL
