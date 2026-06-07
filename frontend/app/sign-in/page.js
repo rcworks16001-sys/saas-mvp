@@ -26,12 +26,16 @@ export default function SignInPage() {
                         colorSuccess: '#34d399',
                         borderRadius: '10px',
                         fontFamily: 'Inter, sans-serif',
+                        colorWarning: '#F59E0B',
                     },
                     elements: {
                         card: {
                             backgroundColor: '#161A22',
                             border: '1px solid #2A3142',
                             boxShadow: '0 10px 30px rgba(0,0,0,0.4)',
+                            formFieldWarningText: { color: '#FFA500' },
+                            formFieldHintText: { color: '#C5CDD8' },
+                            identityPreviewText: { color: '#C5CDD8' },
                         },
                         headerTitle: { color: '#F5F7FA' },
                         headerSubtitle: { color: '#C5CDD8' },
