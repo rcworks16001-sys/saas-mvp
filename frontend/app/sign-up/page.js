@@ -19,7 +19,7 @@ export default function SignUpPage() {
                         colorPrimary: '#4F8CFF',
                         colorBackground: '#161A22',
                         colorText: '#F5F7FA',
-                        colorTextSecondary: '#9AA4B2',
+                        colorTextSecondary: '#C5CDD8',
                         colorInputBackground: '#1C2130',
                         colorInputText: '#F5F7FA',
                         colorDanger: '#f87171',
@@ -34,7 +34,8 @@ export default function SignUpPage() {
                             boxShadow: '0 10px 30px rgba(0,0,0,0.4)',
                         },
                         headerTitle: { color: '#F5F7FA' },
-                        headerSubtitle: { color: '#9AA4B2' },
+                        headerSubtitle: { color: '#C5CDD8' },
+                        formFieldLabel: { color: '#E0E4EA' },
                         formButtonPrimary: {
                             backgroundColor: '#4F8CFF',
                             textTransform: 'none',
@@ -42,6 +43,12 @@ export default function SignUpPage() {
                             fontWeight: '600',
                         },
                         footerActionLink: { color: '#4F8CFF' },
+                        footerActionText: { color: '#C5CDD8' },
+                        otpCodeFieldInput: {
+                            backgroundColor: '#2A3142',
+                            color: '#F5F7FA',
+                            border: '1.5px solid #4F8CFF',
+                        },
                     },
                 }}
             />
