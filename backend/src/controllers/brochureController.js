@@ -1,6 +1,16 @@
 const PDFDocument = require('pdfkit');
 const cloudinary = require('cloudinary').v2;
 const pool = require('../db');
+const axios = require('axios');
+
+const fetchImageBuffer = async (url) => {
+    try {
+        const response = await axios.get(url, { responseType: 'arraybuffer', timeout: 5000 });
+        return Buffer.from(response.data);
+    } catch {
+        return null;
+    }
+};
 
 cloudinary.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -119,10 +129,29 @@ const generatePDF = (exactMatches, proximityMatches, org, leadName) => {
 
         let y = 142;
 
-        const drawProperty = (prop, index, label) => {
+        const drawProperty = async (prop, index, label) => {
             if (y > doc.page.height - 200) { doc.addPage(); y = 50; }
 
-            doc.roundedRect(50, y, pageWidth, 145, 8).fill('#f3f3f3');
+            const hasImage = prop.images && prop.images.length > 0;
+            const cardHeight = hasImage ? 160 : 145;
+            const imgWidth = 110;
+            const textX = hasImage ? 95 : 95;
+            const textMaxWidth = hasImage ? pageWidth - imgWidth - 110 : pageWidth - 120;
+
+            doc.roundedRect(50, y, pageWidth, cardHeight, 8).fill('#f3f3f3');
+
+            // Property image thumbnail (right side)
+            if (hasImage) {
+                const imgBuf = await fetchImageBuffer(prop.images[0]);
+                if (imgBuf) {
+                    try {
+                        doc.save();
+                        doc.roundedRect(pageWidth - 55, y + 10, imgWidth, cardHeight - 20, 6).clip();
+                        doc.image(imgBuf, pageWidth - 55, y + 10, { width: imgWidth, height: cardHeight - 20, cover: [imgWidth, cardHeight - 20] });
+                        doc.restore();
+                    } catch { /* image decode failed — skip silently */ }
+                }
+            }
 
             // Badge
             doc.circle(75, y + 20, 12).fill('#000000');
@@ -135,9 +164,9 @@ const generatePDF = (exactMatches, proximityMatches, org, leadName) => {
                 .text(label.toUpperCase(), doc.page.width - 155, y + 17, { width: 90, align: 'center' });
 
             doc.fillColor('#000000').font('Helvetica-Bold').fontSize(14)
-                .text(prop.title || 'Property', 95, y + 10, { width: pageWidth - 120 });
+                .text(prop.title || 'Property', textX, y + 10, { width: textMaxWidth });
             doc.fillColor('#444444').font('Helvetica').fontSize(11)
-                .text(`${prop.location || '—'}`, 95, y + 32);
+                .text(`${prop.location || '—'}`, textX, y + 32);
 
             const bhkNum = parseBHK(prop.bedrooms);
             const details = [
@@ -145,47 +174,52 @@ const generatePDF = (exactMatches, proximityMatches, org, leadName) => {
                 prop.area_sqft ? `${prop.area_sqft} sq.ft` : null,
                 prop.furnishing || null,
             ].filter(Boolean).join('   •   ');
-            doc.fillColor('#444444').font('Helvetica').fontSize(11).text(details, 95, y + 52);
+            doc.fillColor('#444444').font('Helvetica').fontSize(11).text(details, textX, y + 52, { width: textMaxWidth });
 
             const priceLakhs = parseBudget(prop.price);
             const priceDisplay = priceLakhs
                 ? priceLakhs >= 100 ? `Rs. ${(priceLakhs / 100).toFixed(2)} Cr` : `Rs. ${priceLakhs} L`
                 : '—';
-            doc.fillColor('#000000').font('Helvetica-Bold').fontSize(16).text(priceDisplay, 95, y + 78);
+            doc.fillColor('#000000').font('Helvetica-Bold').fontSize(16).text(priceDisplay, textX, y + 78);
 
             if (isStale(prop)) {
-                doc.roundedRect(95, y + 102, 200, 16, 3).fill('#fff1ca');
+                doc.roundedRect(textX, y + 102, 200, 16, 3).fill('#fff1ca');
                 doc.fillColor('#92400e').font('Helvetica').fontSize(8)
-                    .text('⚠ Listing may be outdated — verify with agent', 99, y + 107, { width: 190 });
-                y += 185;
+                    .text('⚠ Listing may be outdated — verify with agent', textX + 4, y + 107, { width: 190 });
+                y += cardHeight + 40;
             } else {
-                y += 165;
+                y += cardHeight + 20;
             }
         };
 
-        if (exactMatches.length > 0) {
-            doc.fillColor('#000000').font('Helvetica-Bold').fontSize(11).text('Best Matches', 50, y);
-            y += 20;
-            exactMatches.forEach((p, i) => drawProperty(p, i, 'Best Match'));
-        }
+        // drawProperty is async — run outside the Promise executor
+        const renderContent = async () => {
+            if (exactMatches.length > 0) {
+                doc.fillColor('#000000').font('Helvetica-Bold').fontSize(11).text('Best Matches', 50, y);
+                y += 20;
+                for (let i = 0; i < exactMatches.length; i++) await drawProperty(exactMatches[i], i, 'Best Match');
+            }
 
-        if (proximityMatches.length > 0) {
-            if (y > doc.page.height - 250) { doc.addPage(); y = 50; }
-            doc.fillColor('#444444').font('Helvetica-Bold').fontSize(11).text('You Might Also Like', 50, y);
-            y += 20;
-            proximityMatches.forEach((p, i) => drawProperty(p, i, 'Similar'));
-        }
+            if (proximityMatches.length > 0) {
+                if (y > doc.page.height - 250) { doc.addPage(); y = 50; }
+                doc.fillColor('#444444').font('Helvetica-Bold').fontSize(11).text('You Might Also Like', 50, y);
+                y += 20;
+                for (let i = 0; i < proximityMatches.length; i++) await drawProperty(proximityMatches[i], i, 'Similar');
+            }
 
-        // Footer
-        doc.moveTo(50, doc.page.height - 60).lineTo(doc.page.width - 50, doc.page.height - 60)
-            .strokeColor('#e5e7eb').lineWidth(1).stroke();
-        doc.fillColor('#979797').font('Helvetica').fontSize(9)
-            .text(
-                `Generated by Ourivo  •  ${new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}`,
-                50, doc.page.height - 45, { align: 'center', width: pageWidth }
-            );
+            // Footer
+            doc.moveTo(50, doc.page.height - 60).lineTo(doc.page.width - 50, doc.page.height - 60)
+                .strokeColor('#e5e7eb').lineWidth(1).stroke();
+            doc.fillColor('#979797').font('Helvetica').fontSize(9)
+                .text(
+                    `Generated by Ourivo  •  ${new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}`,
+                    50, doc.page.height - 45, { align: 'center', width: pageWidth }
+                );
 
-        doc.end();
+            doc.end();
+        };
+
+        renderContent().catch(reject);
     });
 };
 
