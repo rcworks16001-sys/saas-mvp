@@ -123,6 +123,7 @@ export default function DashboardPage() {
     const trialDaysLeft = billingStatus?.trialDaysRemaining;
     const showTrialBanner = billingStatus?.isTrialActive && trialDaysLeft <= 7;
     const showExpiredBanner = !billingStatus?.isTrialActive && !isActive && billingStatus !== null;
+    const expiredWasSubscribed = billingStatus?.plan === 'pro';
 
     const stats = [
         { label: 'Total leads', value: leads.length, icon: '👥', accent: 'var(--ink)' },
@@ -197,10 +198,12 @@ export default function DashboardPage() {
             {showExpiredBanner && (
                 <div style={{ background: '#fef2f2', borderBottom: '1px solid #fecaca', padding: '10px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <span style={{ fontSize: 13, color: '#b91c1c', fontWeight: 500 }}>
-                        ⚠️ Trial expired. Subscribe to restore full access.
+                        {expiredWasSubscribed
+                            ? '⚠️ Subscription expired. Renew to restore access.'
+                            : '⚠️ Trial expired. Subscribe to continue.'}
                     </span>
                     <Link href="/billing" style={{ fontSize: 12, fontWeight: 700, color: '#b91c1c', textDecoration: 'none', padding: '4px 14px', border: '1.5px solid #fecaca', borderRadius: 'var(--r-btn)' }}>
-                        Subscribe →
+                        {expiredWasSubscribed ? 'Renew →' : 'Subscribe →'}
                     </Link>
                 </div>
             )}

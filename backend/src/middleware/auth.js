@@ -94,13 +94,15 @@ async function attachClerkUser(req) {
 // Full auth: verify token + block if trial expired and not subscribed.
 const authenticateToken = async (req, res, next) => {
     try {
-        const orgState = await attachClerkUser(req);
         if (!orgState.isActive && !orgState.isTrialValid) {
             if (req.path.startsWith('/api/billing')) return next();
+            const wasSubscribed = orgState.subscriptionPlan === 'pro';
             return res.status(403).json({
-                error: 'Trial expired',
-                code: 'TRIAL_EXPIRED',
-                message: 'Your free trial has ended. Please subscribe to continue.',
+                error: wasSubscribed ? 'Subscription expired' : 'Trial expired',
+                code: wasSubscribed ? 'SUBSCRIPTION_EXPIRED' : 'TRIAL_EXPIRED',
+                message: wasSubscribed
+                    ? 'Your subscription has ended. Renew to restore access.'
+                    : 'Your free trial has ended. Please subscribe to continue.',
             });
         }
         next();
