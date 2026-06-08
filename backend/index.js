@@ -59,6 +59,14 @@ setInterval(async () => {
 // Run once on startup too
 expireLapsedSubscriptions();
 
+// ── Renewal reminder cron — runs every hour ──
+const { sendRenewalReminders } = require('./src/controllers/billingController');
+setInterval(async () => {
+    await sendRenewalReminders();
+}, 60 * 60 * 1000);
+
+sendRenewalReminders();
+
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
 });

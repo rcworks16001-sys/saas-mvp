@@ -1,6 +1,9 @@
 const Razorpay = require('razorpay');
 const pool = require('../db/index');
 const crypto = require('crypto');
+const { Resend } = require('resend');
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 const razorpay = new Razorpay({
     key_id: process.env.RAZORPAY_KEY_ID,
@@ -49,6 +52,7 @@ const activateAndRecordPayment = async (organizationId, orderId, paymentId) => {
          SET subscription_status = 'active', 
              subscription_plan = 'pro',
              subscription_ends_at = $2,
+             reminder_sent_at = NULL,
              updated_at = NOW()
          WHERE id = $1`,
         [organizationId, subscriptionEndsAt]
@@ -299,4 +303,73 @@ const expireLapsedSubscriptions = async () => {
     }
 };
 
-module.exports = { createOrder, verifyPayment, getBillingStatus, razorpayWebhook, expireLapsedSubscriptions };
+// ── Renewal reminder cron — runs every hour ──
+// Fires once per subscription cycle for paid orgs expiring within 3 days.
+// reminder_sent_at guards against re-firing hourly — it is cleared when a new
+// payment is recorded (see activateAndRecordPayment). Guards:
+//   - subscription_status = 'active' AND plan = 'pro'  → paid orgs only
+//   - subscription_ends_at BETWEEN NOW() AND NOW() + 3 days → window
+//   - reminder_sent_at IS NULL                           → not yet sent this cycle
+const sendRenewalReminders = async () => {
+    try {
+        const result = await pool.query(
+            `SELECT id, email, name, subscription_ends_at
+             FROM organizations
+             WHERE subscription_status = 'active'
+               AND subscription_plan = 'pro'
+               AND subscription_ends_at IS NOT NULL
+               AND subscription_ends_at BETWEEN NOW() AND NOW() + INTERVAL '3 days'
+               AND reminder_sent_at IS NULL`
+        );
+
+        if (result.rowCount === 0) return;
+
+        for (const org of result.rows) {
+            const endsAt = new Date(org.subscription_ends_at);
+            const daysLeft = Math.ceil((endsAt - new Date()) / (1000 * 60 * 60 * 24));
+
+            try {
+                await resend.emails.send({
+                    from: 'Ourivo <noreply@ourivo.com>',
+                    to: org.email,
+                    subject: `Your Ourivo subscription expires in ${daysLeft} day${daysLeft === 1 ? '' : 's'}`,
+                    html: `
+                        <div style="font-family: Arial, sans-serif; max-width: 520px; margin: 0 auto; background: #ffffff; padding: 40px; border-radius: 16px; border: 1px solid #e5e7eb;">
+                            <h2 style="color: #000000; margin: 0 0 8px 0; font-size: 22px;">Renew your subscription</h2>
+                            <p style="color: #444444; margin: 0 0 24px 0; font-size: 15px;">
+                                Hi ${org.name || 'there'}, your Ourivo subscription expires on
+                                <strong>${endsAt.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</strong>
+                                — that's ${daysLeft} day${daysLeft === 1 ? '' : 's'} away.
+                            </p>
+                            <p style="color: #444444; margin: 0 0 24px 0; font-size: 15px;">
+                                Renew now to keep your WhatsApp chatbot running and avoid missing leads.
+                            </p>
+                            <a href="https://ourivo.com/billing"
+                               style="display: inline-block; background: #000000; color: #ffffff; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 15px;">
+                                Renew for ₹1,999 →
+                            </a>
+                            <p style="color: #979797; margin: 32px 0 0 0; font-size: 13px;">
+                                If you have already renewed, ignore this email — your access is safe.
+                            </p>
+                        </div>
+                    `,
+                });
+
+                // Stamp reminder_sent_at only after email confirmed sent
+                await pool.query(
+                    `UPDATE organizations SET reminder_sent_at = NOW() WHERE id = $1`,
+                    [org.id]
+                );
+
+                console.log(`Renewal reminder sent to org ${org.id} (${org.email}), expires ${endsAt.toISOString()}`);
+            } catch (emailErr) {
+                // Don't stamp reminder_sent_at on failure — cron will retry next hour
+                console.error(`Renewal reminder failed for org ${org.id}:`, emailErr.message);
+            }
+        }
+    } catch (error) {
+        console.error('Renewal reminder cron error:', error);
+    }
+};
+
+module.exports = { createOrder, verifyPayment, getBillingStatus, razorpayWebhook, expireLapsedSubscriptions, sendRenewalReminders };

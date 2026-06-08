@@ -46,6 +46,10 @@ const migrate = async () => {
             -- Strict idempotency: one Razorpay payment can only ever produce one row.
             CREATE UNIQUE INDEX IF NOT EXISTS uniq_payments_razorpay_payment_id
                 ON payments(razorpay_payment_id);
+
+            -- Renewal reminder: tracks when we last sent the 3-day warning so the
+            -- hourly cron doesn't re-fire it every hour.
+            ALTER TABLE organizations ADD COLUMN IF NOT EXISTS reminder_sent_at TIMESTAMPTZ;
         `);
 
         // Backfill: every existing org currently shares the sandbox number.
