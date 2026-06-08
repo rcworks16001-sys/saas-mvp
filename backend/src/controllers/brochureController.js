@@ -23,6 +23,12 @@ const parseBudget = (budgetStr) => {
     return null;
 };
 
+const isStale = (prop) => {
+    const lastUpdated = prop.updated_at ? new Date(prop.updated_at) : new Date(prop.created_at);
+    const daysSince = (Date.now() - lastUpdated.getTime()) / (1000 * 60 * 60 * 24);
+    return daysSince > 30;
+};
+
 const parseBHK = (bhkStr) => {
     if (!bhkStr) return null;
     const match = bhkStr.toString().match(/(\d+)/);
@@ -147,7 +153,14 @@ const generatePDF = (exactMatches, proximityMatches, org, leadName) => {
                 : '—';
             doc.fillColor('#000000').font('Helvetica-Bold').fontSize(16).text(priceDisplay, 95, y + 78);
 
-            y += 165;
+            if (isStale(prop)) {
+                doc.roundedRect(95, y + 102, 200, 16, 3).fill('#fff1ca');
+                doc.fillColor('#92400e').font('Helvetica').fontSize(8)
+                    .text('⚠ Listing may be outdated — verify with agent', 99, y + 107, { width: 190 });
+                y += 185;
+            } else {
+                y += 165;
+            }
         };
 
         if (exactMatches.length > 0) {
